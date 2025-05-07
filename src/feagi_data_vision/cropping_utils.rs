@@ -1,29 +1,18 @@
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
-use feagi_core_data_structures_and_processing::feagi_data_vision::cropping_utils;
-
-/*
-#[pymodule]
-pub fn py_module_cropping_utils() -> PyResult<()> {
-    let this_child_module = PyModule::new(py(), "cropping_utils")?;
-    
-    this_child_module.add_class::<PyCornerPoints>()?;
-    
-    Ok(this_child_module)
-}
- */
+use feagi_core_data_structures_and_processing::feagi_data_vision::cropping_utils::*;
 
 #[pyclass]
 #[pyo3(name = "CornerPoints")]
 pub struct PyCornerPoints {
-    inner: cropping_utils::CornerPoints,
+    pub inner: CornerPoints,
 }
 
 #[pymethods]
 impl PyCornerPoints {
     #[new]
     fn new(lower_left: (usize, usize), upper_right: (usize, usize)) -> PyResult<Self> {
-        let result = cropping_utils::CornerPoints::new(lower_left, upper_right);
+        let result = CornerPoints::new(lower_left, upper_right);
         match result {
             Ok(inner) => Ok(PyCornerPoints{ inner }),
             Err(msg) => Err(PyErr::new::<PyValueError, _>(msg))
@@ -56,5 +45,4 @@ impl PyCornerPoints {
     fn upper_right(&self) -> (usize, usize) {
         return self.inner.upper_right;
     }
-
 }
