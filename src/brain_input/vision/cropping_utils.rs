@@ -4,6 +4,7 @@ use feagi_core_data_structures_and_processing::brain_input::vision::cropping_uti
 
 #[pyclass]
 #[pyo3(name = "CornerPoints")]
+#[derive(Clone)]
 pub struct PyCornerPoints {
     pub inner: CornerPoints,
 }

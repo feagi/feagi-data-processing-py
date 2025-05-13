@@ -3,6 +3,8 @@ use pyo3::{Bound, PyResult};
 
 mod cropping_utils;
 mod peripheral_segmentation;
+mod single_frame;
+mod single_frame_internal;
 
 use cropping_utils::{PyCornerPoints};
 

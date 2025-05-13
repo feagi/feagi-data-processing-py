@@ -18,6 +18,7 @@ crate-type = ["cdylib"]
 [dependencies]
 feagi_core_data_structures_and_processing = { version = "0.0.5"}
 numpy = "0.24.0"
+ndarray = "0.16.1"
 
 [dependencies.pyo3]
 version = "0.24.2"
