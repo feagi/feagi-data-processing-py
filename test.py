@@ -2,6 +2,8 @@
 import feagi_data_processing as fdp
 import numpy as np
 
+a = fdp.brain_input.vision.
+
 a = fdp.data_vision.cropping_utils.CornerPoints((0,1), (3,4))
 print(a.lower_right())
 

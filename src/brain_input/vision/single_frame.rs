@@ -3,7 +3,7 @@ use numpy::PyReadonlyArray3;
 use ndarray::{Array3};
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
-use pyo3::types::{PyBytes, PyByteArray};
+use pyo3::types::{PyBytes};
 use crate::brain_input::vision::cropping_utils::PyCornerPoints;
 
 #[pyclass(eq, eq_int)]
