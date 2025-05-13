@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
-use feagi_core_data_structures_and_processing::feagi_data_vision::cropping_utils::*;
+use feagi_core_data_structures_and_processing::brain_input::vision::cropping_utils::CornerPoints;
 
 #[pyclass]
 #[pyo3(name = "CornerPoints")]

@@ -1,8 +1,7 @@
-use feagi_core_data_structures_and_processing::feagi_data_vision::cropping_utils::CornerPoints;
-use feagi_core_data_structures_and_processing::feagi_data_vision::peripheral_segmentation::*;
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
 use super::cropping_utils::*;
+use feagi_core_data_structures_and_processing::brain_input::vision::peripheral_segmentation::{SegmentedVisionCenterProperties};
 
 #[pyclass]
 #[pyo3(name = "SegmentedVisionCenterProperties")]

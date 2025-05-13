@@ -1,11 +1,13 @@
 use pyo3::prelude::*;
-use pyo3::{pymodule, Bound, PyResult};
+use pyo3::{Bound, PyResult};
 
 mod cropping_utils;
 mod peripheral_segmentation;
 
-pub fn register_data_vision(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
-    let child_module = PyModule::new(parent_module.py(), "data_vision")?;
+use cropping_utils::{PyCornerPoints};
+
+pub fn register_vision(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
+    let child_module = PyModule::new(parent_module.py(), "vision")?;
     
     register_cropping_utils(&child_module)?;
     register_peripheral_segmentation(&child_module)?;

@@ -1,5 +1,3 @@
-mod feagi_data_brain;
-mod feagi_byte_structures;
 mod brain_input;
 mod brain_output;
 mod byte_data_functions;
@@ -11,12 +9,12 @@ use pyo3::prelude::*;
 use pyo3::{wrap_pyfunction, wrap_pymodule};
 use pyo3::types::IntoPyDict;
 
-use brain_input::vision::register_data_vision;
+use brain_input::register_brain_input;
 
 /// Core Module, accessible to users
 #[pymodule]
 fn feagi_data_processing(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
-    register_data_vision(m)?;
+    register_brain_input(m)?;
     Ok(())
 }
 
