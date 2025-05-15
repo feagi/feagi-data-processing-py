@@ -1,6 +1,6 @@
 use feagi_core_data_structures_and_processing::brain_input::vision::single_frame::{ImageFrame};
 use feagi_core_data_structures_and_processing::brain_input::vision::single_frame_processing::*;
-use numpy::PyReadonlyArray3;
+use numpy::{PyArray3, PyReadonlyArray3};
 use ndarray::{Array3};
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
@@ -79,7 +79,10 @@ impl PyImageFrame {
         let result = self.inner.to_bytes();
         PyBytes::new(py, &result)
     }
- 
+    
+    pub fn copy_to_numpy_array(&self, py: Python) -> PyResult<Py<PyArray3<f32>>> {
+        Ok(Py::from(PyArray3::from_array(py, &self.inner.get_pixels_view())))
+    }
 
 
 }

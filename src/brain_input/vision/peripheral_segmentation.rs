@@ -100,4 +100,8 @@ impl PySegmentedVisionFrame {
             Err(msg) => Err(PyErr::new::<PyValueError, _>(msg.to_string()))
         }
     }
+    
+    pub fn get_center_image_frame(&self) -> PyImageFrame {
+        PyImageFrame {inner: self.inner.get_center_image_frame().clone()}
+    }
 }
