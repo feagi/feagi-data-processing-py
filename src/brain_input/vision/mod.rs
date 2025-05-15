@@ -1,24 +1,24 @@
 use pyo3::prelude::*;
 use pyo3::{Bound, PyResult};
 
-mod cropping_utils;
 mod peripheral_segmentation;
 mod single_frame;
+mod single_frame_processing;
 
 pub fn register_vision(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
     let child_module = PyModule::new(parent_module.py(), "vision")?;
-    
-    register_cropping_utils(&child_module)?;
+
+    register_single_frame_processing(&child_module)?;
     register_peripheral_segmentation(&child_module)?;
     register_single_frame(&child_module)?;
     
     parent_module.add_submodule(&child_module)
 }
 
-pub fn register_cropping_utils(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
-    let child_module = PyModule::new(parent_module.py(), "cropping_utils")?;
+pub fn register_single_frame_processing(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
+    let child_module = PyModule::new(parent_module.py(), "single_frame_processing")?;
     
-    child_module.add_class::<cropping_utils::PyCornerPoints>()?;
+    child_module.add_class::<single_frame_processing::PyCornerPoints>()?;
     
     parent_module.add_submodule(&child_module)
 }
