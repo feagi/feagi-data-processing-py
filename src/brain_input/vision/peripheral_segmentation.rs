@@ -20,7 +20,7 @@ pub struct PySegmentedVisionCenterProperties{
 impl PySegmentedVisionCenterProperties{
     #[new]
     pub fn new(center_coordinates_normalized: (f32, f32), center_size_normalized: (f32, f32)) -> PyResult<Self> {
-        let result = SegmentedVisionCenterProperties::new(center_coordinates_normalized, center_size_normalized);
+        let result = SegmentedVisionCenterProperties::new_row_major_where_origin_top_left(center_coordinates_normalized, center_size_normalized);
         match result {
             Ok(inner) => Ok(PySegmentedVisionCenterProperties{inner}),
             Err(msg) => Err(PyErr::new::<PyValueError, _>(msg.to_string())),
@@ -73,9 +73,8 @@ pub struct PySegmentedVisionFrame{
 #[pymethods]
 impl PySegmentedVisionFrame {
     #[new]
-    pub fn new(input: PyReadonlyArray3<f32>, center_properties: PySegmentedVisionCenterProperties, segment_resolutions: PySegmentedVisionTargetResolutions) -> PyResult<Self> {
-        let array: Array3<f32>  = input.as_array().to_owned();
-        let result = SegmentedVisionFrame::new(&array, ColorSpace::Gamma, &center_properties.inner, &segment_resolutions.inner);
+    pub fn new(input: PyImageFrame, center_properties: PySegmentedVisionCenterProperties, segment_resolutions: PySegmentedVisionTargetResolutions) -> PyResult<Self> {
+        let result = SegmentedVisionFrame::new(&input.inner, &center_properties.inner, &segment_resolutions.inner);
         match result {
             Ok(inner) => Ok(PySegmentedVisionFrame {inner}),
             Err(msg) => Err(PyErr::new::<PyValueError, _>(msg.to_string()))
