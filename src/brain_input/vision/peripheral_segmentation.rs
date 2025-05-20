@@ -1,6 +1,7 @@
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
 use super::single_frame_processing::*;
+use crate::neuron_state::neuron_data::{PyCorticalMappedNeuronData};
 use feagi_core_data_structures_and_processing::brain_input::vision::peripheral_segmentation::{SegmentedVisionCenterProperties, SegmentedVisionFrame, SegmentedVisionTargetResolutions};
 use feagi_core_data_structures_and_processing::brain_input::vision::single_frame_processing::ColorSpace;
 use ndarray::Array3;
@@ -20,7 +21,7 @@ pub struct PySegmentedVisionCenterProperties{
 impl PySegmentedVisionCenterProperties{
     #[new]
     pub fn new(center_coordinates_normalized: (f32, f32), center_size_normalized: (f32, f32)) -> PyResult<Self> {
-        let result = SegmentedVisionCenterProperties::new(center_coordinates_normalized, center_size_normalized);
+        let result = SegmentedVisionCenterProperties::new_row_major_where_origin_top_left(center_coordinates_normalized, center_size_normalized);
         match result {
             Ok(inner) => Ok(PySegmentedVisionCenterProperties{inner}),
             Err(msg) => Err(PyErr::new::<PyValueError, _>(msg.to_string())),
@@ -73,15 +74,23 @@ pub struct PySegmentedVisionFrame{
 #[pymethods]
 impl PySegmentedVisionFrame {
     #[new]
-    pub fn new(input: PyReadonlyArray3<f32>, center_properties: PySegmentedVisionCenterProperties, segment_resolutions: PySegmentedVisionTargetResolutions) -> PyResult<Self> {
-        let array: Array3<f32>  = input.as_array().to_owned();
-        let result = SegmentedVisionFrame::new(&array, ColorSpace::Gamma, &center_properties.inner, &segment_resolutions.inner);
+    pub fn new(input: PyImageFrame, center_properties: PySegmentedVisionCenterProperties, segment_resolutions: PySegmentedVisionTargetResolutions) -> PyResult<Self> {
+        let result = SegmentedVisionFrame::new(&input.inner, &center_properties.inner, &segment_resolutions.inner);
         match result {
             Ok(inner) => Ok(PySegmentedVisionFrame {inner}),
             Err(msg) => Err(PyErr::new::<PyValueError, _>(msg.to_string()))
         }
     }
-    
+
+    #[staticmethod]
+    pub fn new_no_segment_test_temp(input: PyImageFrame, center_properties: PySegmentedVisionCenterProperties, segment_resolutions: PySegmentedVisionTargetResolutions) -> PyResult<Self> {
+        let result = SegmentedVisionFrame::new_no_segment_test_temp(&input.inner, &center_properties.inner, &segment_resolutions.inner);
+        match result {
+            Ok(inner) => Ok(PySegmentedVisionFrame {inner}),
+            Err(msg) => Err(PyErr::new::<PyValueError, _>(msg.to_string()))
+        }
+    }
+
     /*
     pub fn update_in_place(&mut self, source_frame: PyImageFrame) -> PyResult<()> {
         let result = self.inner.update_in_place(&source_frame.inner);
@@ -92,14 +101,15 @@ impl PySegmentedVisionFrame {
     }
     */
 
-    
-    pub fn direct_export_as_byte_neuron_potential_categorical_xyz<'py>(&self, py: Python<'py>, camera_index: u8) -> PyResult<Bound<'py, PyBytes>> {
-        let result = self.inner.direct_export_as_byte_neuron_potential_categorical_xyz(camera_index);
+    pub fn export_as_cortical_mapped_neuron_data(&mut self, camera_index: u8)-> PyResult<PyCorticalMappedNeuronData> {
+        let result = self.inner.export_as_cortical_mapped_neuron_data(camera_index);
         match result {
-            Ok(byte_array) => Ok(PyBytes::new(py, &byte_array)),
+            Ok(cortical_data) => Ok(PyCorticalMappedNeuronData{inner: cortical_data}),
             Err(msg) => Err(PyErr::new::<PyValueError, _>(msg.to_string()))
         }
     }
+
+
     
     pub fn get_center_image_frame(&self) -> PyImageFrame {
         PyImageFrame {inner: self.inner.get_center_image_frame().clone()}

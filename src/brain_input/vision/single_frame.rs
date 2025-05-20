@@ -44,7 +44,7 @@ impl PyImageFrame {
     #[staticmethod]
     pub fn from_array(input: PyReadonlyArray3<f32>) -> PyResult<Self> {
         let array: Array3<f32>  = input.as_array().to_owned();
-        let result = ImageFrame::from_array(ColorSpace::Gamma, array);
+        let result = ImageFrame::from_array(array, ColorSpace::Gamma, MemoryOrderLayout::HeightsWidthsChannels);
         match result {
             Ok(image_frame) => Ok(PyImageFrame{inner: image_frame}),
             Err(err) => Err(PyValueError::new_err(err.to_string()))
@@ -74,11 +74,7 @@ impl PyImageFrame {
     }
     
      */
-
-    pub fn to_bytes<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
-        let result = self.inner.to_bytes();
-        PyBytes::new(py, &result)
-    }
+    
     
     pub fn copy_to_numpy_array(&self, py: Python) -> PyResult<Py<PyArray3<f32>>> {
         Ok(Py::from(PyArray3::from_array(py, &self.inner.get_pixels_view())))

@@ -20,16 +20,6 @@ impl PyFrameProcessingParameters {
 }
 
 
-
-
-
-
-
-
-
-
-
-
 #[pyclass]
 #[pyo3(name = "CornerPoints")]
 #[derive(Clone)]
@@ -40,40 +30,62 @@ pub struct PyCornerPoints {
 #[pymethods]
 impl PyCornerPoints {
     #[new]
-    fn new(lower_left: (usize, usize), upper_right: (usize, usize)) -> PyResult<Self> {
-        let result = CornerPoints::new(lower_left, upper_right);
+    fn new_from_row_major_where_origin_top_left(lower_left: (usize, usize), upper_right: (usize, usize)) -> PyResult<Self> {
+        let result = CornerPoints::new_from_row_major_where_origin_top_left(lower_left, upper_right);
         match result {
             Ok(inner) => Ok(PyCornerPoints{ inner }),
             Err(msg) => Err(PyErr::new::<PyValueError, _>(msg.to_string()))
         }
 
     }
+    
+    #[staticmethod]
+    fn new_from_cartesian_where_origin_bottom_left(lower_left: (usize, usize), upper_right: (usize, usize), total_resolution_width_height: (usize, usize)) -> PyResult<Self> {
+        let result = CornerPoints::new_from_cartesian_where_origin_bottom_left(lower_left, upper_right, total_resolution_width_height);
+        match result {
+            Ok(inner) => Ok(PyCornerPoints{ inner }),
+            Err(msg) => Err(PyErr::new::<PyValueError, _>(msg.to_string()))
+        }
 
-    fn does_fit_in_frame_of_resolution(&self, source_total_resolution: (usize, usize)) -> bool {
-        return self.inner.does_fit_in_frame_of_resolution(source_total_resolution);
+    }
+    
+    fn does_fit_in_frame_of_width_height(&self, source_total_resolution: (usize, usize)) -> bool {
+        return self.inner.does_fit_in_frame_of_width_height(source_total_resolution);
     }
 
-    fn enclosed_area(&self) -> (usize, usize) {
-        return self.inner.enclosed_area();
-    }
-
-    #[getter]
-    fn lower_right(&self) -> (usize, usize) {
-        return self.inner.lower_right();
-    }
-
-    #[getter]
-    fn upper_left(&self) -> (usize, usize) {
-        return self.inner.upper_left();
-    }
-
-    #[getter]
-    fn lower_left(&self) -> (usize, usize) {
-        return self.inner.lower_left();
+    fn enclosed_area_width_height(&self) -> (usize, usize) {
+        return self.inner.enclosed_area_width_height();
     }
 
     #[getter]
-    fn upper_right(&self) -> (usize, usize) {
-        return self.inner.upper_right();
+    fn lower_right_row_major(&self) -> (usize, usize) {
+        return self.inner.lower_right_row_major();
     }
+
+    #[getter]
+    fn upper_left_row_major(&self) -> (usize, usize) {
+        return self.inner.upper_left_row_major();
+    }
+
+    #[getter]
+    fn lower_left_row_major(&self) -> (usize, usize) {
+        return self.inner.lower_left_row_major();
+    }
+
+    #[getter]
+    fn upper_right_row_major(&self) -> (usize, usize) {
+        return self.inner.upper_right_row_major();
+    }
+}
+
+#[pyclass(eq, eq_int)]
+#[derive(PartialEq, Clone)]
+#[pyo3(name = "MemoryOrderLayout")]
+pub enum PyMemoryOrderLayout {
+    HeightsWidthsChannels, // default, also called row major
+    ChannelsHeightsWidths, // common in machine learning
+    WidthsHeightsChannels, // cartesian, the best one
+    HeightsChannelsWidths,
+    ChannelsWidthsHeights,
+    WidthsChannelsHeights,
 }
