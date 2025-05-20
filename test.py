@@ -25,4 +25,7 @@ image_segmented = fdp.brain_input.vision.peripheral_segmentation.SegmentedVision
 bytes = image_segmented.direct_export_as_byte_neuron_potential_categorical_xyz(0)
 
 
+{"cortical_ID": (list(int x y z), float potential)}
+
+
 print("pause")

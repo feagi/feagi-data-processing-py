@@ -11,12 +11,15 @@ use pyo3::types::IntoPyDict;
 
 use brain_input::register_brain_input;
 use cortical_area_state::register_cortical_area_state;
+use neuron_state::register_neuron_state;
 
 /// Core Module, accessible to users
 #[pymodule]
 fn feagi_data_processing(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     register_brain_input(m)?;
     register_cortical_area_state(m)?;
+    register_neuron_state(m)?;
+    
     Ok(())
 }
 
