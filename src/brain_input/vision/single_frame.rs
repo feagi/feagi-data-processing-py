@@ -74,11 +74,7 @@ impl PyImageFrame {
     }
     
      */
-
-    pub fn to_bytes<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
-        let result = self.inner.to_bytes();
-        PyBytes::new(py, &result)
-    }
+    
     
     pub fn copy_to_numpy_array(&self, py: Python) -> PyResult<Py<PyArray3<f32>>> {
         Ok(Py::from(PyArray3::from_array(py, &self.inner.get_pixels_view())))
