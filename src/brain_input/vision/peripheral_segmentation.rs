@@ -8,7 +8,7 @@ use ndarray::Array3;
 use numpy::PyReadonlyArray3;
 use pyo3::types::{PyBytes};
 
-use crate::brain_input::vision::single_frame::PyImageFrame;
+use crate::brain_input::vision::image_frame::PyImageFrame;
 
 #[pyclass]
 #[pyo3(name = "SegmentedVisionFrame")]

@@ -48,7 +48,7 @@ impl PyCorticalMappedNeuronData {
 #[derive(Clone)]
 #[pyo3(name = "NeuronXYCPArrays")]
 pub struct PyNeuronXYCPArrays {
-    inner: NeuronXYCPArrays,
+    pub inner: NeuronXYCPArrays,
 }
 
 #[pymethods]

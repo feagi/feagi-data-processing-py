@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 use pyo3::{Bound, PyResult};
 
 mod peripheral_segmentation;
-mod single_frame;
+mod image_frame;
 mod single_frame_processing;
 mod descriptors;
 
@@ -37,7 +37,7 @@ pub fn register_peripheral_segmentation(parent_module: &Bound<'_, PyModule>) -> 
 pub fn register_single_frame(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
     let child_module = PyModule::new(parent_module.py(), "single_frame")?;
 
-    child_module.add_class::<single_frame::PyImageFrame>()?;
+    child_module.add_class::<image_frame::PyImageFrame>()?;
 
     parent_module.add_submodule(&child_module)
 }
