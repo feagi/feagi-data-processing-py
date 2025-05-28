@@ -11,61 +11,6 @@ use pyo3::types::{PyBytes};
 use crate::brain_input::vision::single_frame::PyImageFrame;
 
 #[pyclass]
-#[derive(Clone)]
-#[pyo3(name = "SegmentedVisionCenterProperties")]
-pub struct PySegmentedVisionCenterProperties{
-    pub inner: SegmentedVisionCenterProperties,
-}
-
-#[pymethods]
-impl PySegmentedVisionCenterProperties{
-    #[new]
-    pub fn new(center_coordinates_normalized: (f32, f32), center_size_normalized: (f32, f32)) -> PyResult<Self> {
-        let result = SegmentedVisionCenterProperties::new_row_major_where_origin_top_left(center_coordinates_normalized, center_size_normalized);
-        match result {
-            Ok(inner) => Ok(PySegmentedVisionCenterProperties{inner}),
-            Err(msg) => Err(PyErr::new::<PyValueError, _>(msg.to_string())),
-        }
-    }
-
-    pub fn calculate_pixel_coordinates_of_center_corners(&self, source_frame_resolution: (usize, usize)) -> PyResult<PyCornerPoints>{
-        let result = self.inner.calculate_pixel_coordinates_of_center_corners(source_frame_resolution);
-        match result {
-            Ok(corner_points) => Ok(PyCornerPoints{inner: corner_points}),
-            Err(msg) => Err(PyErr::new::<PyValueError, _>(msg.to_string()))
-        }
-    }
-}
-
-#[pyclass]
-#[derive(Clone)]
-#[pyo3(name = "SegmentedVisionTargetResolutions")]
-pub struct PySegmentedVisionTargetResolutions{
-    pub inner: SegmentedVisionTargetResolutions,
-}
-
-#[pymethods]
-impl PySegmentedVisionTargetResolutions{
-    #[new]
-    pub fn new(        lower_left: (usize, usize),
-                       middle_left: (usize, usize),
-                       upper_left: (usize, usize),
-                       upper_middle: (usize, usize),
-                       upper_right: (usize, usize),
-                       middle_right: (usize, usize),
-                       lower_right: (usize, usize),
-                       lower_middle: (usize, usize),
-                       center: (usize, usize)
-    ) -> PyResult<Self> {
-        let result = SegmentedVisionTargetResolutions::new(lower_left, middle_left, upper_left, upper_middle, upper_right, middle_right, lower_right, lower_middle, center);
-        match result {
-            Ok(inner) => Ok(PySegmentedVisionTargetResolutions { inner }),
-            Err(msg) => Err(PyErr::new::<PyValueError, _>(msg.to_string()))
-        }
-    }
-}
-
-#[pyclass]
 #[pyo3(name = "SegmentedVisionFrame")]
 pub struct PySegmentedVisionFrame{
     inner: SegmentedVisionFrame,

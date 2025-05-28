@@ -6,24 +6,7 @@ use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
 use pyo3::types::{PyBytes};
 
-#[pyclass(eq, eq_int)]
-#[derive(PartialEq, Clone)]
-#[pyo3(name = "ChannelFormat")]
-pub enum PyChannelFormat {
-    GrayScale,
-    RG,
-    RGB,
-    RGBA
-}
 
-fn py_from_channel_format(channel_format: PyChannelFormat) -> ChannelFormat {
-    match channel_format {
-        PyChannelFormat::GrayScale => ChannelFormat::GrayScale,
-        PyChannelFormat::RG => ChannelFormat::RG,
-        PyChannelFormat::RGB => ChannelFormat::RGB,
-        PyChannelFormat::RGBA => ChannelFormat::RGBA,
-    }
-}
 #[pyclass]
 #[pyo3(name = "ImageFrame")]
 #[derive(Clone)]

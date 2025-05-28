@@ -4,6 +4,7 @@ use pyo3::{Bound, PyResult};
 mod peripheral_segmentation;
 mod single_frame;
 mod single_frame_processing;
+mod descriptors;
 
 pub fn register_vision(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
     let child_module = PyModule::new(parent_module.py(), "vision")?;
