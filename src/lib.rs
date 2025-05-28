@@ -1,17 +1,14 @@
 mod brain_input;
 mod brain_output;
 mod byte_data_functions;
-mod cortical_area_state;
-mod neuron_state;
+mod cortical_data;
+mod neuron_data;
 
 use numpy::ndarray::AssignElem;
 use pyo3::prelude::*;
 use pyo3::{wrap_pyfunction, wrap_pymodule};
 use pyo3::types::IntoPyDict;
 
-use brain_input::register_brain_input;
-use cortical_area_state::register_cortical_area_state;
-use neuron_state::register_neuron_state;
 
 macro_rules! add_python_class {
     ($python:expr, $root_python_module:expr, $class_path:expr, $class:ty) => {
@@ -52,7 +49,10 @@ fn feagi_data_processing(py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     //register_brain_input(m)?;
     //register_cortical_area_state(m)?;
     //register_neuron_state(m)?;
-    add_python_class!(py, m, "cortical_data", cortical_area_state::cortical_data::PyCorticalID);
+    
+    add_python_class!(py, m, "cortical_data", cortical_data::PyCorticalID);
+    add_python_class!(py, m, "neuron_data", neuron_data::PyCorticalMappedNeuronData);
+    add_python_class!(py, m, "neuron_data", neuron_data::PyNeuronXYCPArrays);
     Ok(())
 }
 

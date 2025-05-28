@@ -1,13 +1,12 @@
-use feagi_core_data_structures_and_processing::cortical_area_state::cortical_data::CorticalID;
+use pyo3::{pyclass, pymethods, PyResult};
 use pyo3::exceptions::PyValueError;
-use pyo3::pyclass;
-use pyo3::prelude::*;
+use feagi_core_data_structures_and_processing::cortical_data::CorticalID;
 
 #[pyclass(eq)]
 #[derive(PartialEq, Clone)]
 #[pyo3(name = "CorticalID")]
 pub struct PyCorticalID {
-    inner: CorticalID,
+    pub inner: CorticalID,
 }
 
 #[pymethods]
@@ -24,6 +23,4 @@ impl PyCorticalID {
     pub fn as_str(&self) -> &str {
         self.inner.as_str()
     }
-    
-    
 }
