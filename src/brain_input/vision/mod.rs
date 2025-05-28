@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 use pyo3::{Bound, PyResult};
 
-mod peripheral_segmentation;
+mod segmented_vision_frame;
 mod image_frame;
 mod single_frame_processing;
 mod descriptors;
@@ -27,9 +27,9 @@ pub fn register_single_frame_processing(parent_module: &Bound<'_, PyModule>) -> 
 pub fn register_peripheral_segmentation(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
     let child_module = PyModule::new(parent_module.py(), "peripheral_segmentation")?;
 
-    child_module.add_class::<peripheral_segmentation::PySegmentedVisionCenterProperties>()?;
-    child_module.add_class::<peripheral_segmentation::PySegmentedVisionTargetResolutions>()?;
-    child_module.add_class::<peripheral_segmentation::PySegmentedVisionFrame>()?;
+    child_module.add_class::<segmented_vision_frame::PySegmentedVisionCenterProperties>()?;
+    child_module.add_class::<segmented_vision_frame::PySegmentedVisionTargetResolutions>()?;
+    child_module.add_class::<segmented_vision_frame::PySegmentedVisionFrame>()?;
 
     parent_module.add_submodule(&child_module)
 }

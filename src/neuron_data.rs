@@ -10,7 +10,7 @@ use crate::cortical_data::PyCorticalID;
 #[derive(Clone)]
 #[pyo3(name = "CorticalMappedNeuronData")]
 pub struct PyCorticalMappedNeuronData { // HashMap<CorticalID, NeuronYXCPArrays>
-    inner: CorticalMappedNeuronData
+    pub inner: CorticalMappedNeuronData
 }
 
 #[pymethods]
