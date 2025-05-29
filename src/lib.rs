@@ -10,6 +10,7 @@ use pyo3::{wrap_pyfunction, wrap_pymodule};
 use pyo3::types::IntoPyDict;
 
 
+
 macro_rules! add_python_class {
     ($python:expr, $root_python_module:expr, $class_path:expr, $class:ty) => {
         {
@@ -46,13 +47,28 @@ macro_rules! add_python_class {
 /// Core Module, accessible to users
 #[pymodule]
 fn feagi_data_processing(py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
-    //register_brain_input(m)?;
-    //register_cortical_area_state(m)?;
-    //register_neuron_state(m)?;
+
     
     add_python_class!(py, m, "cortical_data", cortical_data::PyCorticalID);
+    
     add_python_class!(py, m, "neuron_data", neuron_data::PyCorticalMappedNeuronData);
     add_python_class!(py, m, "neuron_data", neuron_data::PyNeuronXYCPArrays);
+
+    add_python_class!(py, m, "brain_input.vision.descriptors", brain_input::vision::descriptors::PyChannelFormat);
+    add_python_class!(py, m, "brain_input.vision.descriptors", brain_input::vision::descriptors::PySegmentedVisionTargetResolutions);
+    add_python_class!(py, m, "brain_input.vision.descriptors", brain_input::vision::descriptors::PySegmentedVisionCenterProperties);
+    add_python_class!(py, m, "brain_input.vision.descriptors", brain_input::vision::descriptors::PyColorSpace);
+    add_python_class!(py, m, "brain_input.vision.descriptors", brain_input::vision::descriptors::PyCornerPoints);
+    add_python_class!(py, m, "brain_input.vision.descriptors", brain_input::vision::descriptors::PyFrameProcessingParameters);
+    add_python_class!(py, m, "brain_input.vision.descriptors", brain_input::vision::descriptors::PyMemoryOrderLayout);
+    add_python_class!(py, m, "brain_input.vision.descriptors", brain_input::vision::descriptors::PySegmentedVisionFrameSourceCroppingPointGrouping);
+    
+    add_python_class!(py, m, "brain_input.vision", brain_input::vision::image_frame::PyImageFrame);
+
+    add_python_class!(py, m, "brain_input.vision", brain_input::vision::image_frame::PyImageFrame);
+
+    add_python_class!(py, m, "brain_input.vision", brain_input::vision::quick_image_diff::PyQuickImageDiff);
+    
     Ok(())
 }
 

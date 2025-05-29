@@ -1,10 +1,8 @@
 use numpy::{PyArray3, PyReadonlyArray3};
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
-use ndarray::Array3;
 use feagi_core_data_structures_and_processing::brain_input::vision::image_frame::ImageFrame;
 use feagi_core_data_structures_and_processing::brain_input::vision::descriptors::*;
-use feagi_core_data_structures_and_processing::neuron_data::NeuronXYCPArrays;
 use crate::brain_input::vision::descriptors::*;
 use crate::neuron_data::PyNeuronXYCPArrays;
 
