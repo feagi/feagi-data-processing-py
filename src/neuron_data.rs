@@ -3,7 +3,7 @@ use pyo3::pyclass;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes};
 use pyo3::exceptions::PyValueError;
-use feagi_core_data_structures_and_processing::neuron_data::{NeuronXYCPArrays, CorticalMappedNeuronData};
+use feagi_core_data_structures_and_processing::neuron_data::{NeuronXYZPArrays, CorticalMappedNeuronData};
 use crate::cortical_data::PyCorticalID;
 
 #[pyclass]
@@ -48,14 +48,14 @@ impl PyCorticalMappedNeuronData {
 #[derive(Clone)]
 #[pyo3(name = "NeuronXYCPArrays")]
 pub struct PyNeuronXYCPArrays {
-    pub inner: NeuronXYCPArrays,
+    pub inner: NeuronXYZPArrays,
 }
 
 #[pymethods]
 impl PyNeuronXYCPArrays {
     #[new]
     pub fn new(maximum_number_of_neurons_possibly_needed: usize) -> PyResult<Self> {
-        let result = NeuronXYCPArrays::new(maximum_number_of_neurons_possibly_needed);
+        let result = NeuronXYZPArrays::new(maximum_number_of_neurons_possibly_needed);
         match result {
             Ok(inner) => Ok(PyNeuronXYCPArrays {inner}),
             Err(e) => Err(PyValueError::new_err(e.to_string()))
@@ -64,7 +64,7 @@ impl PyNeuronXYCPArrays {
     
     #[staticmethod]
     pub fn new_from_resolution(resolution: (usize, usize, usize))  -> PyResult<Self> {
-        let result = NeuronXYCPArrays::new_from_resolution(resolution);
+        let result = NeuronXYZPArrays::new_from_resolution(resolution);
         match result {
             Ok(inner) => Ok(PyNeuronXYCPArrays {inner}),
             Err(e) => Err(PyValueError::new_err(e.to_string()))

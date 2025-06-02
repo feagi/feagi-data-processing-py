@@ -15,6 +15,9 @@ pub struct PyImageFrame {
 
 #[pymethods]
 impl PyImageFrame {
+    
+    //region common contructors
+    
     #[new]
     pub fn new(channel_format: PyChannelFormat, color_space: PyColorSpace, xy_resolution: (usize, usize)) -> PyImageFrame {
         PyImageFrame {
@@ -43,6 +46,9 @@ impl PyImageFrame {
             Err(err) => Err(PyErr::new::<PyValueError, _>(err.to_string())),
         }
     }
+    //endregion
+    
+    //region get properties
 
     #[staticmethod]
     pub fn do_resolutions_channel_depth_and_color_spaces_match(a: &PyImageFrame, b: &PyImageFrame) -> bool {
@@ -72,27 +78,41 @@ impl PyImageFrame {
             ColorSpace::Gamma => PyColorSpace::Gamma,
         }
     }
-
-    pub fn get_color_channel_count(&self) -> usize {
+    
+    #[getter]
+    pub fn color_channel_count(&self) -> usize {
         self.inner.get_color_channel_count()
     }
 
-    pub fn get_cartesian_width_height(&self) -> (usize, usize) {
+    // NOTE: get_pixels_view skipped, equivalent is copy_to_numpy_array
+    pub fn copy_to_numpy_array(&self, py: Python) -> PyResult<Py<PyArray3<f32>>> {
+        Ok(Py::from(PyArray3::from_array(py, &self.inner.get_pixels_view())))
+    }
+    
+    #[getter]
+    pub fn cartesian_width_height(&self) -> (usize, usize) {
         self.inner.get_cartesian_width_height()
     }
 
-    pub fn get_internal_resolution(&self) -> (usize, usize) {
+    #[getter]
+    pub fn internal_resolution(&self) -> (usize, usize) {
         self.inner.get_internal_resolution()
     }
 
+    #[getter]
     pub fn get_internal_shape(&self) -> (usize, usize, usize) {
         self.inner.get_internal_shape()
     }
 
+    #[getter]
     pub fn get_max_capacity_neuron_count(&self) -> usize {
         self.inner.get_max_capacity_neuron_count()
     }
 
+    //endregion
+    
+    //region Modify frame
+    
     pub fn change_brightness_multiplicative(&mut self, brightness_factor: f32) -> PyResult<()> {
         match self.inner.change_brightness_multiplicative(brightness_factor) {
             Ok(_) => Ok(()),
@@ -121,6 +141,9 @@ impl PyImageFrame {
         }
     }
 
+    //endregion
+
+    //region Load Data in place
     pub fn in_place_run_processor(&mut self, image_processing: &PyFrameProcessingParameters, source: PyImageFrame) -> PyResult<()> {
         match self.inner.in_place_run_processor(image_processing.inner, source.inner) {
             Ok(_) => Ok(()),
@@ -164,13 +187,15 @@ impl PyImageFrame {
         }
     }
 
-    pub fn write_thresholded_xyzp_neuron_arrays(&mut self, threshold: f32, write_target: &mut PyNeuronXYCPArrays) -> PyResult<()> {
-        match self.inner.write_thresholded_xyzp_neuron_arrays(threshold, &mut write_target.inner) {
-            Ok(_) => Ok(()),
-            Err(err) => Err(PyErr::new::<PyValueError, _>(err.to_string())),
-        }
-    }
-
+    //endregion
+    
+    //region Neuron Export
+    
+    // NOTE: write_thresholded_xyzp_neuron_arrays is not exposed as it makes no sense for python
+    
+    //endregion
+    
+    //region Specialized Constructors
     #[staticmethod]
     pub fn create_from_source_frame_crop_and_resize(
         source_frame: &PyImageFrame,
@@ -183,7 +208,14 @@ impl PyImageFrame {
         }
     }
 
-    pub fn copy_to_numpy_array(&self, py: Python) -> PyResult<Py<PyArray3<f32>>> {
-        Ok(Py::from(PyArray3::from_array(py, &self.inner.get_pixels_view())))
+    #[staticmethod]
+    pub fn create_from_source_frame_crop(
+        source_frame: &PyImageFrame,
+        corners_crop: &PyCornerPoints,
+    ) -> PyResult<PyImageFrame> {
+        match ImageFrame::create_from_source_frame_crop(&source_frame.inner, &corners_crop.inner) {
+            Ok(inner) => Ok(PyImageFrame { inner }),
+            Err(err) => Err(PyErr::new::<PyValueError, _>(err.to_string())),
+        }
     }
 }

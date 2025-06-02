@@ -19,6 +19,8 @@ pub struct PySegmentedVisionFrame{
 
 #[pymethods]
 impl PySegmentedVisionFrame {
+    
+    //region Common Constructors
     #[new]
     pub fn new(
         segment_resolutions: &PySegmentedVisionTargetResolutions,
@@ -50,7 +52,10 @@ impl PySegmentedVisionFrame {
             Err(err) => Err(PyErr::new::<PyValueError, _>(err.to_string())),
         }
     }
-
+    //endregion
+    
+    //region Get Properties
+    
     #[getter]
     pub fn color_space(&self) -> PyColorSpace {
         match self.inner.get_color_space() {
@@ -68,7 +73,9 @@ impl PySegmentedVisionFrame {
             ChannelFormat::RGBA => PyChannelFormat::RGBA,
         }
     }
-
+    //endregion
+    
+    //region Loading in New Data
     pub fn update_segments(
         &mut self,
         source_frame: &PyImageFrame,
@@ -79,39 +86,17 @@ impl PySegmentedVisionFrame {
             Err(err) => Err(PyErr::new::<PyValueError, _>(err.to_string())),
         }
     }
-
+    //endregion 
+    
+    //region Neuron Export
     pub fn export_as_new_cortical_mapped_neuron_data(&mut self, camera_index: u8) -> PyResult<PyCorticalMappedNeuronData> {
         match self.inner.export_as_new_cortical_mapped_neuron_data(camera_index) {
             Ok(neuron_data) => Ok(PyCorticalMappedNeuronData { inner: neuron_data }),
             Err(err) => Err(PyErr::new::<PyValueError, _>(err.to_string())),
         }
     }
-
-    pub fn inplace_export_cortical_mapped_neuron_data(
-        &mut self,
-        ordered_cortical_ids: Vec<PyCorticalID>,
-        all_mapped_neuron_data: &mut PyCorticalMappedNeuronData
-    ) -> PyResult<()> {
-        if ordered_cortical_ids.len() != 9 {
-            return Err(PyErr::new::<PyValueError, _>("ordered_cortical_ids must contain exactly 9 elements".to_string()));
-        }
-
-        // Convert Vec<PyCorticalID> to [CorticalID; 9]
-        let mut cortical_ids_array: [CorticalID; 9] = [
-            ordered_cortical_ids[0].inner.clone(),
-            ordered_cortical_ids[1].inner.clone(),
-            ordered_cortical_ids[2].inner.clone(),
-            ordered_cortical_ids[3].inner.clone(),
-            ordered_cortical_ids[4].inner.clone(),
-            ordered_cortical_ids[5].inner.clone(),
-            ordered_cortical_ids[6].inner.clone(),
-            ordered_cortical_ids[7].inner.clone(),
-            ordered_cortical_ids[8].inner.clone(),
-        ];
-
-        match self.inner.inplace_export_cortical_mapped_neuron_data(&cortical_ids_array, &mut all_mapped_neuron_data.inner) {
-            Ok(_) => Ok(()),
-            Err(err) => Err(PyErr::new::<PyValueError, _>(err.to_string())),
-        }
-    }
+    
+    // NOTE: inplace_export_cortical_mapped_neuron_data is not exposed to python since inplace operations make no sense
+    
+    //endregion
 }
