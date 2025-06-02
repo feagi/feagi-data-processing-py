@@ -95,7 +95,7 @@ fn feagi_data_processing(py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     add_python_class!(py, m, "brain_input.vision", brain_input::vision::image_frame::PyImageFrame);
 
-    add_python_class!(py, m, "brain_input.vision", brain_input::vision::quick_image_diff::PyQuickImageDiff);
+    // add_python_class!(py, m, "brain_input.vision", brain_input::vision::quick_image_diff::PyQuickImageDiff);
     
     Ok(())
 }

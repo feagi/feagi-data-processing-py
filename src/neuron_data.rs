@@ -70,15 +70,6 @@ impl PyNeuronXYCPArrays {
             Err(e) => Err(PyValueError::new_err(e.to_string()))
         }
     }
-
-    #[staticmethod]
-    pub fn cortical_mapped_neuron_data_to_bytes<'py>(py: Python<'py>, mapped_data: PyCorticalMappedNeuronData)  -> PyResult<Bound<'py, PyBytes>> {
-        let result = NeuronXYCPArrays::cortical_mapped_neuron_data_to_bytes(&mapped_data.inner);
-        match result {
-            Ok(vector) => Ok(PyBytes::new(py, &vector)),
-            Err(e) => Err(PyValueError::new_err(e.to_string()))
-        }
-    }
     
     pub fn get_max_neuron_capacity_without_reallocating(&self) -> PyResult<usize> {
         let result = self.inner.get_max_neuron_capacity_without_reallocating();
