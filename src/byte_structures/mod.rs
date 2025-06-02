@@ -1,4 +1,5 @@
 pub mod serializers;
+mod deserializers;
 
 use pyo3::pyclass;
 use feagi_core_data_structures_and_processing::byte_structures::FeagiByteStructureType;
@@ -14,13 +15,13 @@ pub enum PyFeagiByteStructureType{
 
 impl PyFeagiByteStructureType{
     pub fn from_base(e: FeagiByteStructureType) -> Self{
-        match e { 
+        match e {
             FeagiByteStructureType::JSON => PyFeagiByteStructureType::JSON,
             FeagiByteStructureType::MultiStructHolder => PyFeagiByteStructureType::MultiStructHolder,
             FeagiByteStructureType::NeuronCategoricalXYZP => PyFeagiByteStructureType::NeuronCategoricalXYZP,
         }
     }
-    
+
     pub fn to_base(e: PyFeagiByteStructureType) -> FeagiByteStructureType{
         match e {
             PyFeagiByteStructureType::JSON => FeagiByteStructureType::JSON,

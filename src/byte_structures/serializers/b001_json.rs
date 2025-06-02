@@ -1,7 +1,6 @@
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::types::{PyAny, PyDict, PyList, PyBytes};
-use serde_json::{Map, Number, Value};
+use pyo3::types::{PyBytes};
 use feagi_core_data_structures_and_processing::byte_structures::serializers::b001_json::JsonSerializerV1;
 use feagi_core_data_structures_and_processing::byte_structures::serializers::FeagiByteSerializer;
 use super::PyFeagiByteSerializer;
@@ -15,10 +14,13 @@ pub struct PyJsonSerializer {
 #[pymethods]
 impl PyJsonSerializer {
     #[new]
-    pub fn from_json(json_str: String) -> PyResult<PyJsonSerializer> {
+    pub fn from_json(json_str: String) -> PyResult<(Self, PyFeagiByteSerializer)> {
         let json = serde_json::from_str(&json_str);
         match json {
-            Ok(val) => { Ok(PyJsonSerializer { inner: JsonSerializerV1::from_json(val).unwrap() })},
+            Ok(val) => { 
+                let inner = JsonSerializerV1::from_json(val).unwrap();
+                Ok((PyJsonSerializer { inner }, PyFeagiByteSerializer {}))
+            },
             Err(err) => { Err(PyErr::new::<PyValueError, _>(err.to_string()))}
         }
     }

@@ -1,6 +1,6 @@
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::types::{PyByteArray};
+use pyo3::types::{PyByteArray, PyBytes};
 use feagi_core_data_structures_and_processing::byte_structures::serializers::FeagiByteSerializer;
 
 pub mod b001_json;
@@ -24,7 +24,7 @@ impl PyFeagiByteSerializer {
     #[getter]
     pub fn max_possible_size_when_serialized(&self) -> usize { 0 } // placeholder
 
-    pub fn serialize_new(&self) -> PyResult<PyByteArray> { // placeholder
+    pub fn serialize_new<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> { // placeholder
         Err(PyValueError::new_err("This object cannot be used directly")) 
     } 
     
