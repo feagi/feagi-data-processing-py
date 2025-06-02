@@ -1,6 +1,6 @@
 mod brain_input;
 mod brain_output;
-mod byte_data_functions;
+mod byte_structures;
 mod cortical_data;
 mod neuron_data;
 
