@@ -18,11 +18,16 @@ neuron_2 = fdp.neuron_data.neurons.NeuronXYZP(4,5,6,0.1)
 created_neuron_arr = fdp.neuron_data.neuron_arrays.NeuronXYZPArrays(2)
 created_neuron_arr.add_neuron(neuron_1)
 created_neuron_arr.add_neuron(neuron_2)
+
+
 print(created_neuron_arr.get_number_of_neurons_used())
 list_of_neurons = created_neuron_arr.copy_as_neuron_xyzp_vec()
 
 mapped_neuron_data = fdp.neuron_data.neuron_mappings.CorticalMappedXYZPNeuronData()
 mapped_neuron_data.insert(cortical_id, created_neuron_arr)
+
+for (c_id, neurons) in mapped_neuron_data.iter_easy():
+    print("a")
 
 byte_data = mapped_neuron_data.as_new_feagi_byte_structure()
 

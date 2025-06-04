@@ -81,6 +81,8 @@ fn feagi_data_processing(py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     
     add_python_class!(py, m, "neuron_data.neuron_arrays", neuron_data::neuron_arrays::PyNeuronXYZPArrays);
     add_python_class!(py, m, "neuron_data.neuron_mappings", neuron_data::neuron_mappings::PyCorticalMappedXYZPNeuronData);
+    add_python_class!(py, m, "neuron_data.neuron_mappings", neuron_data::neuron_mappings::PyCorticalMappedXYZPNeuronDataFullIter);
+    add_python_class!(py, m, "neuron_data.neuron_mappings", neuron_data::neuron_mappings::PyCorticalMappedXYZPNeuronDataEasyIter);
     add_python_class!(py, m, "neuron_data.neurons", neuron_data::neurons::PyNeuronXYZP);
 
     add_python_class!(py, m, "brain_input.vision.descriptors", brain_input::vision::descriptors::PyChannelFormat);

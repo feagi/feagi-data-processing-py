@@ -3,7 +3,7 @@ use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
 use numpy::{PyArray1, PyReadonlyArray1};
 use feagi_core_data_structures_and_processing::neuron_data::neuron_arrays::*;
-
+use ndarray::Array1;
 use pyo3::types::{PyBytes, PyList, PyTuple};
 use super::neurons::PyNeuronXYZP;
 
@@ -92,7 +92,15 @@ impl PyNeuronXYZPArrays {
         
         PyList::new(py, py_objects)
     }
-    
-
 }
 
+pub fn tuple_nd_array_to_tuple_np_array<'py>(input: (Array1<u32>, Array1<u32>, Array1<u32>, Array1<f32>), py: Python<'py>)
+    -> PyResult<(Bound<'py, PyArray1<u32>>, Bound<'py, PyArray1<u32>>, Bound<'py, PyArray1<u32>>, Bound<'py, PyArray1<f32>>)> {
+
+    Ok((
+        PyArray1::from_array(py, &input.0),
+        PyArray1::from_array(py, &input.1),
+        PyArray1::from_array(py, &input.2),
+        PyArray1::from_array(py, &input.3)
+    ))
+    }
