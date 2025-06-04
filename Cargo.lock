@@ -39,9 +39,9 @@ dependencies = [
 
 [[package]]
 name = "feagi_core_data_structures_and_processing"
-version = "0.0.28"
+version = "0.0.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "42e2d5adfe907c7ac35b7ab88bb36e4d2b0f8000b33fe5d9c38ede44a55ecaed"
+checksum = "826f5b04c4ae72ac0fdcf27f7866eba56a938f810ee4cd511138c495688e32a5"
 dependencies = [
  "bytemuck",
  "byteorder",

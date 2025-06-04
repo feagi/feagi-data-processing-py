@@ -1,5 +1,7 @@
-pub mod serializers;
-mod deserializers;
+//pub mod serializers;
+//mod deserializers;
+
+mod feagi_byte_structure;
 
 use pyo3::pyclass;
 use feagi_core_data_structures_and_processing::byte_structures::FeagiByteStructureType;
