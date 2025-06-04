@@ -3,7 +3,7 @@ use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
 use numpy::{PyArray1, PyReadonlyArray1};
 use feagi_core_data_structures_and_processing::neuron_data::neuron_arrays::*;
-use ndarray::Array1;
+
 use pyo3::types::{PyBytes, PyList, PyTuple};
 use super::neurons::PyNeuronXYZP;
 
@@ -72,15 +72,14 @@ impl PyNeuronXYZPArrays {
         Ok(())
     }
 
-    pub fn copy_as_tuple_of_numpy<'py>(&self, py: Python<'py>) -> PyResult<(PyArray1<u32>, PyArray1<u32>, PyArray1<u32>, PyArray1<f32>)> {
-        let borrowed:(&Vec<u32>, &Vec<u32>, &Vec<u32>, &Vec<f32>, ) = self.inner.borrow_xyzp_vectors();
-        let copy_of_tuple: (Array1<u32>, Array1<u32>, Array1<u32>, Array1<f32>) = self.inner.copy_as_tuple_of_nd_arrays();
+    pub fn copy_as_tuple_of_numpy<'py>(&self, py: Python<'py>) -> PyResult<(Bound<'py, PyArray1<u32>>, Bound<'py, PyArray1<u32>>, Bound<'py, PyArray1<u32>>, Bound<'py, PyArray1<f32>>)> {
+        let nd_arrays_tuple = self.inner.copy_as_tuple_of_nd_arrays();
         Ok((
-            PyArray1::from_array(py, &copy_of_tuple.0),
-            PyArray1::from_array(py, &copy_of_tuple.1),
-            PyArray1::from_array(py, &copy_of_tuple.2),
-            PyArray1::from_array(py, &copy_of_tuple.3)
-            ))
+            PyArray1::from_array(py, &nd_arrays_tuple.0),
+            PyArray1::from_array(py, &nd_arrays_tuple.1),
+            PyArray1::from_array(py, &nd_arrays_tuple.2),
+            PyArray1::from_array(py, &nd_arrays_tuple.3)
+        ))
     }
 
     pub fn copy_as_neuron_xyzp_vec<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyList>> {
@@ -93,9 +92,7 @@ impl PyNeuronXYZPArrays {
         
         PyList::new(py, py_objects)
     }
-
-
-    // TODO add a way to copy data out
+    
 
 }
 

@@ -23,4 +23,8 @@ impl PyCorticalID {
     pub fn as_str(&self) -> &str {
         self.inner.as_str()
     }
+
+    fn __repr__(&self) -> String {
+        format!("Cortical_ID({})", self.as_str())
+    }
 }

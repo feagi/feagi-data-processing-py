@@ -1,7 +1,9 @@
 use feagi_core_data_structures_and_processing::byte_structures::feagi_byte_structure::{FeagiByteStructure, FeagiByteStructureCompatible};
-use pyo3::{pyclass, pymethods, PyResult};
+use pyo3::{pyclass, pymethods, PyResult, Py};
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
+use ndarray::Array1;
+use numpy::PyArray1;
 use feagi_core_data_structures_and_processing::neuron_data::neuron_mappings::*;
 use crate::byte_structures::feagi_byte_structure::PyFeagiByteStructure;
 use crate::cortical_data::{PyCorticalID};
@@ -44,6 +46,24 @@ impl PyCorticalMappedXYZPNeuronData {
         Ok(self.inner.contains(cortical_id.inner))
     }
     
+    pub fn get(&self, cortical_id: PyCorticalID) -> PyResult<PyNeuronXYZPArrays> {
+        let result = self.inner.borrow(&cortical_id.inner);
+        if result.is_none() {
+            return Err(PyValueError::new_err(format!("Cortical ID {} does not have a mapping to neuron XYZP data!", cortical_id.as_str()))); 
+        }
+        Ok(PyNeuronXYZPArrays {inner: result.unwrap().clone()})
+    }
+    
+    fn __iter__(&self, py: Python<'_>) -> PyResult<PyCorticalMappedXYZPNeuronDataFullIter> {
+        let items: Vec<(PyCorticalID, PyNeuronXYZPArrays)> = self
+            .inner
+            .mappings
+            .iter()
+            .map(|(k, v)| (PyCorticalID { inner: k.clone() }, PyNeuronXYZPArrays { inner: v.clone() }))
+            .collect();
+        Ok(PyCorticalMappedXYZPNeuronDataFullIter { items, index: 0 })
+    }
+    
     // TODO use inheritance properly
     pub fn as_new_feagi_byte_structure(&self) -> PyResult<PyFeagiByteStructure> {
         let result = self.inner.as_new_feagi_byte_structure();
@@ -54,3 +74,50 @@ impl PyCorticalMappedXYZPNeuronData {
     }
 
 }
+
+
+#[pyclass]
+pub struct PyCorticalMappedXYZPNeuronDataFullIter {
+    items: Vec<(PyCorticalID, PyNeuronXYZPArrays)>,
+    index: usize,
+}
+
+#[pymethods]
+impl PyCorticalMappedXYZPNeuronDataFullIter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    fn __next__(&mut self) -> Option<(PyCorticalID, PyNeuronXYZPArrays)> {
+        if self.index >= self.items.len() {
+            None
+        } else {
+            let pair = self.items[self.index].clone();
+            self.index += 1;
+            Some(pair)
+        }
+    }
+}
+
+#[pyclass]
+pub struct PyCorticalMappedXYZPNeuronDataEasyIter {
+    items: Vec<(String, (Py<PyArray1<u32>>, Py<PyArray1<u32>>, Py<PyArray1<u32>>, Py<PyArray1<f32>>))>,
+    index: usize,
+}
+
+#[pymethods]
+impl PyCorticalMappedXYZPNeuronDataEasyIter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    fn __next__(&mut self) -> Option<(String, (Py<PyArray1<u32>>, Py<PyArray1<u32>>, Py<PyArray1<u32>>, Py<PyArray1<f32>>))> {
+        if self.index >= self.items.len() {
+            None
+        } else {
+            let pair = self.items.swap_remove(self.index);
+            Some(pair)
+        }
+    }
+}
+    
