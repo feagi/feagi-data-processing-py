@@ -7,8 +7,9 @@ use feagi_core_data_structures_and_processing::byte_structures::feagi_byte_struc
 
 #[pyclass]
 #[pyo3(name = "FeagiByteStructure")]
+#[derive(Clone)]
 pub struct PyFeagiByteStructure{
-    inner: FeagiByteStructure,
+    pub inner: FeagiByteStructure,
 }
 
 #[pymethods]
@@ -69,7 +70,7 @@ impl PyFeagiByteStructure {
     pub fn get_utilized_capacity_percentage(&self) -> f32 {
         self.inner.get_utilized_capacity_percentage()
     }
-    
+
     // Return as copy of Python Bytes
     pub fn copy_as_bytes<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
         Ok(PyBytes::new(py, self.inner.borrow_data_as_slice()))
