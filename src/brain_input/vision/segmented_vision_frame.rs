@@ -8,7 +8,7 @@ use feagi_core_data_structures_and_processing::cortical_data::CorticalID;
 use super::image_frame::PyImageFrame;
 use super::descriptors::*;
 use crate::cortical_data::PyCorticalID;
-use crate::neuron_data::PyCorticalMappedNeuronData;
+use crate::neuron_data::neuron_mappings::{PyCorticalMappedXYZPNeuronData};
 
 
 #[pyclass]
@@ -89,9 +89,9 @@ impl PySegmentedVisionFrame {
     //endregion 
     
     //region Neuron Export
-    pub fn export_as_new_cortical_mapped_neuron_data(&mut self, camera_index: u8) -> PyResult<PyCorticalMappedNeuronData> {
+    pub fn export_as_new_cortical_mapped_neuron_data(&mut self, camera_index: u8) -> PyResult<PyCorticalMappedXYZPNeuronData> {
         match self.inner.export_as_new_cortical_mapped_neuron_data(camera_index) {
-            Ok(neuron_data) => Ok(PyCorticalMappedNeuronData { inner: neuron_data }),
+            Ok(neuron_data) => Ok(PyCorticalMappedXYZPNeuronData { inner: neuron_data }),
             Err(err) => Err(PyErr::new::<PyValueError, _>(err.to_string())),
         }
     }

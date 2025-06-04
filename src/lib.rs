@@ -46,10 +46,10 @@ macro_rules! add_python_class {
 macro_rules! add_python_function {
     ($python:expr, $root_python_module:expr, $class_path:expr, $function:ty) => {
         {
-            
+
             let path: Vec<String> = $class_path.split('.').map(|s| s.to_string()).collect();
             let mut current_module = $root_python_module.clone();
-            
+
             for path_step in path {
                 if !check_submodule_exists(&current_module, &path_step) {
                     // we need to add a submodule
@@ -63,7 +63,7 @@ macro_rules! add_python_function {
                     current_module = child_module.downcast::<PyModule>()?.clone();
                 }
             }
-            
+
             current_module.add_function::<$function>()?;
         }
     };
@@ -79,8 +79,9 @@ fn feagi_data_processing(py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     
     add_python_class!(py, m, "cortical_data", cortical_data::PyCorticalID);
     
-    add_python_class!(py, m, "neuron_data", neuron_data::PyCorticalMappedNeuronData);
-    add_python_class!(py, m, "neuron_data", neuron_data::PyNeuronXYCPArrays);
+    add_python_class!(py, m, "neuron_data.neuron_arrays", neuron_data::neuron_arrays::PyNeuronXYZPArrays);
+    add_python_class!(py, m, "neuron_data.neuron_mappings", neuron_data::neuron_mappings::PyCorticalMappedXYZPNeuronData);
+    add_python_class!(py, m, "neuron_data.neurons", neuron_data::neurons::PyNeuronXYZP);
 
     add_python_class!(py, m, "brain_input.vision.descriptors", brain_input::vision::descriptors::PyChannelFormat);
     add_python_class!(py, m, "brain_input.vision.descriptors", brain_input::vision::descriptors::PySegmentedVisionTargetResolutions);

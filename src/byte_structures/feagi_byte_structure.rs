@@ -16,8 +16,8 @@ impl PyFeagiByteStructure {
     
     /// Create a new FeagiByteStructure from bytes
     #[new]
-    pub fn new(bytes: &PyBytes) -> PyResult<Self> {
-        let bytes_vec = bytes.data();
+    pub fn new<'py>(py: Python<'py>, bytes: Bound<'py, PyBytes>) -> PyResult<Self> {
+        let bytes_vec = bytes.as_bytes().to_vec();
         match FeagiByteStructure::create_from_bytes(bytes_vec) {
             Ok(inner) => Ok(PyFeagiByteStructure { inner }),
             Err(e) => Err(PyValueError::new_err(format!("{:?}", e))),
@@ -70,6 +70,11 @@ impl PyFeagiByteStructure {
         self.inner.get_utilized_capacity_percentage()
     }
     
+    // Return as copy of Python Bytes
+    pub fn copy_as_bytes<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+        Ok(PyBytes::new(py, self.inner.borrow_data_as_slice()))
+    }
+
     /*
     /// String representation for debugging
     pub fn __repr__(&self) -> String {
@@ -86,6 +91,6 @@ impl PyFeagiByteStructure {
     pub fn __str__(&self) -> String {
         self.__repr__()
     }
-    
+
      */
 }

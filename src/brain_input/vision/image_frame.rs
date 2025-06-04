@@ -4,7 +4,6 @@ use pyo3::exceptions::PyValueError;
 use feagi_core_data_structures_and_processing::brain_input::vision::image_frame::ImageFrame;
 use feagi_core_data_structures_and_processing::brain_input::vision::descriptors::*;
 use crate::brain_input::vision::descriptors::*;
-use crate::neuron_data::PyNeuronXYCPArrays;
 
 #[pyclass]
 #[pyo3(name = "ImageFrame")]
