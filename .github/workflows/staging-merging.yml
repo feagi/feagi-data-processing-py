@@ -241,8 +241,12 @@ jobs:
           uses: PyO3/maturin-action@v1
           with:
             command: upload
-            args: --non-interactive --username __token__ --password ${{ secrets.TEST_PYPI_DATA_PROCESSING }} --skip-existing --repository-url https://test.pypi.org/legacy/ dist/*
-                
+            args: --non-interactive --skip-existing --repository-url https://test.pypi.org/legacy/ dist/*
+          env:
+            MATURIN_USERNAME: __token__
+            MATURIN_PASSWORD: ${{ secrets.TEST_PYPI_DATA_PROCESSING }}
+
+          
         - name: Create prerelease tag
           run: |
             git config --local user.email "action@github.com"
