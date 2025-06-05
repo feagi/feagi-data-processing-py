@@ -218,9 +218,10 @@ jobs:
         with:
           subject-path: 'wheels-*/*'
       
-      - name: Publish to TestPyPI
+      - name: Upload wheels to TestPyPI
         uses: PyO3/maturin-action@v1
         with:
+          command: ''
           args: >
             upload
             --non-interactive
@@ -229,6 +230,7 @@ jobs:
             --skip-existing
             --repository-url https://test.pypi.org/legacy/
             wheels-*/*
+
       
       - name: Create prerelease tag
         run: |
