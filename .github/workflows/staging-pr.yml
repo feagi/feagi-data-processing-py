@@ -44,7 +44,7 @@ jobs:
       - name: Install and test wheel
         run: |
           pip install dist/*.whl
-          python -c "import feagi_core_data_structures_and_processing; print('✅ Package imports successfully')"
+          python -c "import feagi_data_processing; print('✅ Package imports successfully')"
 
       - name: Check version number increase
         run: |
