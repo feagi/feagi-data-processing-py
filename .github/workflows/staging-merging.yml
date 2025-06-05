@@ -242,7 +242,7 @@ jobs:
           uses: PyO3/maturin-action@v1
           with:
             command: upload
-            args: --non-interactive --skip-existing
+            args: --non-interactive --skip-existing dist/*
           env:
             MATURIN_USERNAME: __token__
             MATURIN_PASSWORD: ${{ secrets.TEST_PYPI_DATA_PROCESSING }}
