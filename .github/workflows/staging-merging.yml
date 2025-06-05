@@ -211,27 +211,28 @@ jobs:
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "package_name=${PACKAGE_NAME}" >> "$GITHUB_OUTPUT"
       
-      - uses: actions/download-artifact@v4
-      
-      - name: Generate artifact attestation
-        uses: actions/attest-build-provenance@v2
-        with:
-          subject-path: 'wheels-*/*'
-      
-      - name: Upload wheels to TestPyPI
-        uses: PyO3/maturin-action@v1
-        with:
-          command: ''
-          args: >
-            upload
-            --non-interactive
-            --username __token__
-            --password ${{ secrets.TEST_PYPI_DATA_PROCESSING }}
-            --skip-existing
-            --repository-url https://test.pypi.org/legacy/
-            wheels-*/*
-
-      
+        - uses: actions/download-artifact@v4
+          with:
+            path: dist
+        
+        - name: Generate artifact attestation
+          uses: actions/attest-build-provenance@v2
+          with:
+            subject-path: 'dist/*'
+        
+        - name: Upload wheels to TestPyPI
+          uses: PyO3/maturin-action@v1
+          with:
+            command: ''
+            args: >
+              upload
+              --non-interactive
+              --username __token__
+              --password ${{ secrets.TEST_PYPI_DATA_PROCESSING }}
+              --skip-existing
+              --repository-url https://test.pypi.org/legacy/
+              dist/*
+              
       - name: Create prerelease tag
         run: |
           git config --local user.email "action@github.com"
