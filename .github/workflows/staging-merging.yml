@@ -224,7 +224,7 @@ jobs:
           MATURIN_PYPI_TOKEN: ${{ secrets.TEST_PYPI_DATA_PROCESSING }}
         with:
           command: upload
-          args: --non-interactive --skip-existing --repository-url https://test.pypi.org/legacy/ wheels-*/*
+          args: --non-interactive --skip-existing --repository testpypi wheels-*/*
       
       - name: Create prerelease tag
         run: |
