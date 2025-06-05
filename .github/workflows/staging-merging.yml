@@ -163,124 +163,130 @@ jobs:
           path: dist
 
   prerelease:
-    name: Create Prerelease
-    runs-on: ubuntu-latest
-    needs: [linux, musllinux, windows, macos, sdist]
-    if: github.event.pull_request.merged == true
-    permissions:
-      # Use to sign the release artifacts
-      id-token: write
-      # Used to upload release artifacts
-      contents: write
-      # Used to generate artifact attestation
-      attestations: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: staging
-      
-      - name: Get version from Cargo.toml
-        id: version
-        run: |
-          # Check if Cargo.toml exists
-          if [ ! -f "Cargo.toml" ]; then
-            echo "❌ Error: Cargo.toml not found"
-            exit 1
-          fi
-          
-          # Extract version
-          VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
-          if [ -z "$VERSION" ]; then
-            echo "❌ Error: Could not extract version from Cargo.toml"
-            cat Cargo.toml
-            exit 1
-          fi
-          
-          # Extract package name and convert hyphens to underscores for Python
-          PACKAGE_NAME=$(grep '^name = ' Cargo.toml | head -1 | sed 's/name = "\(.*\)"/\1/' | tr '-' '_')
-          if [ -z "$PACKAGE_NAME" ]; then
-            echo "❌ Error: Could not extract package name from Cargo.toml"
-            cat Cargo.toml
-            exit 1
-          fi
-          
-          # Output the values
-          echo "Version: $VERSION"
-          echo "Package name: $PACKAGE_NAME"
-          
-          # Set GitHub outputs
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "package_name=${PACKAGE_NAME}" >> "$GITHUB_OUTPUT"
-      
-      - name: Download all artifacts into dist/
-        uses: actions/download-artifact@v4
-        with:
-          path: dist
-          merge-multiple: true
-
-      
-      - name: Generate artifact attestation
-        uses: actions/attest-build-provenance@v2
-        with:
-          subject-path: 'dist/*'
-      
-      - name: Upload wheels to TestPyPI
-        uses: PyO3/maturin-action@v1
-        with:
-          command: ''
-          args: >
-            upload
-            --non-interactive
-            --username __token__
-            --password ${{ secrets.TEST_PYPI_DATA_PROCESSING }}
-            --skip-existing
-            --repository-url https://test.pypi.org/legacy/
-            dist/*
+      name: Create Prerelease
+      runs-on: ubuntu-latest
+      needs: [linux, musllinux, windows, macos, sdist]
+      if: github.event.pull_request.merged == true
+      permissions:
+        # Use to sign the release artifacts
+        id-token: write
+        # Used to upload release artifacts
+        contents: write
+        # Used to generate artifact attestation
+        attestations: write
+      steps:
+        - uses: actions/checkout@v4
+          with:
+            ref: staging
+        
+        - name: Get version from Cargo.toml
+          id: version
+          run: |
+            # Check if Cargo.toml exists
+            if [ ! -f "Cargo.toml" ]; then
+              echo "❌ Error: Cargo.toml not found"
+              exit 1
+            fi
+            
+            # Extract version
+            VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+            if [ -z "$VERSION" ]; then
+              echo "❌ Error: Could not extract version from Cargo.toml"
+              cat Cargo.toml
+              exit 1
+            fi
+            
+            # Extract package name and convert hyphens to underscores for Python
+            PACKAGE_NAME=$(grep '^name = ' Cargo.toml | head -1 | sed 's/name = "\(.*\)"/\1/' | tr '-' '_')
+            if [ -z "$PACKAGE_NAME" ]; then
+              echo "❌ Error: Could not extract package name from Cargo.toml"
+              cat Cargo.toml
+              exit 1
+            fi
+            
+            # Output the values
+            echo "Version: $VERSION"
+            echo "Package name: $PACKAGE_NAME"
+            
+            # Set GitHub outputs
+            echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+            echo "package_name=${PACKAGE_NAME}" >> "$GITHUB_OUTPUT"
+        
+        - name: Download all artifacts
+          uses: actions/download-artifact@v4
+          with:
+            pattern: wheels-*
+            path: artifacts
+  
+        - name: Prepare distribution directory
+          run: |
+            mkdir -p dist
+            find artifacts -type f \( -name "*.whl" -o -name "*.tar.gz" \) -exec cp {} dist/ \;
+            echo "Files in dist directory:"
+            ls -la dist/
+            
+            if [ -z "$(ls -A dist/)" ]; then
+              echo "❌ Error: No files found in dist directory"
+              echo "Available artifacts:"
+              find artifacts -type f
+              exit 1
+            fi
+        
+        - name: Generate artifact attestation
+          uses: actions/attest-build-provenance@v2
+          with:
+            subject-path: 'dist/*'
+        
+        - name: Upload wheels to TestPyPI
+          uses: PyO3/maturin-action@v1
+          with:
+            command: upload
+            args: --non-interactive --username __token__ --password ${{ secrets.TEST_PYPI_DATA_PROCESSING }} --skip-existing --repository-url https://test.pypi.org/legacy/ dist/*
+                
+        - name: Create prerelease tag
+          run: |
+            git config --local user.email "action@github.com"
+            git config --local user.name "GitHub Action"
+            
+            TAG_NAME="v${{ steps.version.outputs.version }}-pre"
+            echo "Creating prerelease tag: $TAG_NAME"
+            
+            git tag "$TAG_NAME"
+            git push origin "$TAG_NAME"
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+        - name: Create GitHub Prerelease
+          uses: actions/create-release@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          with:
+            tag_name: v${{ steps.version.outputs.version }}-pre
+            release_name: Prerelease v${{ steps.version.outputs.version }}
+            body: |
+              🚀 Python Prerelease of ${{ steps.version.outputs.package_name }} v${{ steps.version.outputs.version }}
               
-      - name: Create prerelease tag
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          
-          TAG_NAME="v${{ steps.version.outputs.version }}-pre"
-          echo "Creating prerelease tag: $TAG_NAME"
-          
-          git tag "$TAG_NAME"
-          git push origin "$TAG_NAME"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Create GitHub Prerelease
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v${{ steps.version.outputs.version }}-pre
-          release_name: Prerelease v${{ steps.version.outputs.version }}
-          body: |
-            🚀 Python Prerelease of ${{ steps.version.outputs.package_name }} v${{ steps.version.outputs.version }}
-            
-            This is a prerelease version from the staging branch.
-            
-            **Installation from TestPyPI:**
-            ```bash
-            pip install --index-url https://test.pypi.org/simple/ ${{ steps.version.outputs.package_name }}==${{ steps.version.outputs.version }}
-            ```
-            
-            **Changes:**
-            - Version: ${{ steps.version.outputs.version }}
-            - Branch: staging
-            - Commit: ${{ github.sha }}
-            
-            **Build Information:**
-            - ✅ Linux wheels (x86_64, x86, aarch64, armv7, s390x, ppc64le)
-            - ✅ MuslLinux wheels (x86_64, x86, aarch64, armv7)
-            - ✅ Windows wheels (x64, x86)
-            - ✅ macOS wheels (x86_64, aarch64)
-            - ✅ Source distribution included
-            - ✅ Published to TestPyPI
-            - ✅ Artifacts signed and attested
-            
-            **Note:** This version has been published to TestPyPI for testing purposes.
-          draft: false
-          prerelease: true
+              This is a prerelease version from the staging branch.
+              
+              **Installation from TestPyPI:**
+              ```bash
+              pip install --index-url https://test.pypi.org/simple/ ${{ steps.version.outputs.package_name }}==${{ steps.version.outputs.version }}
+              ```
+              
+              **Changes:**
+              - Version: ${{ steps.version.outputs.version }}
+              - Branch: staging
+              - Commit: ${{ github.sha }}
+              
+              **Build Information:**
+              - ✅ Linux wheels (x86_64, x86, aarch64, armv7, s390x, ppc64le)
+              - ✅ MuslLinux wheels (x86_64, x86, aarch64, armv7)
+              - ✅ Windows wheels (x64, x86)
+              - ✅ macOS wheels (x86_64, aarch64)
+              - ✅ Source distribution included
+              - ✅ Published to TestPyPI
+              - ✅ Artifacts signed and attested
+              
+              **Note:** This version has been published to TestPyPI for testing purposes.
+            draft: false
+            prerelease: true
