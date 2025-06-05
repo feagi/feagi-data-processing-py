@@ -237,16 +237,17 @@ jobs:
           with:
             subject-path: 'dist/*'
         
-        - name: Upload wheels to TestPyPI
+        - name: Upload wheels to TestPyPI  
           uses: PyO3/maturin-action@v1
           with:
             command: upload
-            args: --non-interactive --skip-existing --repository-url https://test.pypi.org/legacy/ dist/*
+            args: --non-interactive --skip-existing --repository-url https://test.pypi.org/legacy/
           env:
             MATURIN_USERNAME: __token__
             MATURIN_PASSWORD: ${{ secrets.TEST_PYPI_DATA_PROCESSING }}
-
-          
+            MATURIN_REPOSITORY_URL: https://test.pypi.org/legacy/
+        
+                  
         - name: Create prerelease tag
           run: |
             git config --local user.email "action@github.com"
