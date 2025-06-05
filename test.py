@@ -4,9 +4,6 @@ import numpy as np
 
 print("start")
 
-
-
-
 # cortical areas and their neurons
 cortical_id_a = fdp.cortical_data.CorticalID("AAAAAA")
 neuron_a_1 = fdp.neuron_data.neurons.NeuronXYZP(1,2,3,0.5)
@@ -22,12 +19,21 @@ neurons_b = fdp.neuron_data.neuron_arrays.NeuronXYZPArrays(2)
 neurons_b.add_neuron(neuron_b_1)
 neurons_b.add_neuron(neuron_b_2)
 
+cortical_id_c  = fdp.cortical_data.CorticalID("CCCCCC")
+neurons_c_x = np.asarray([1,2,3], dtype=np.uint32)
+neurons_c_y = np.asarray([4,5,6], dtype=np.uint32)
+neurons_c_z = np.asarray([7,8,9], dtype=np.uint32)
+neurons_c_p = np.asarray([0.1,0.2,0.3], dtype=np.float32)
+neurons_c = fdp.neuron_data.neuron_arrays.NeuronXYZPArrays.new_from_numpy(neurons_c_x, neurons_c_y, neurons_c_z, neurons_c_p)
+copy_back_c = neurons_c.copy_as_tuple_of_numpy()
+
 
 # list_of_neurons = neurons_a.copy_as_neuron_xyzp_vec() # example, getting as vector
 
 generated_mapped_neuron_data = fdp.neuron_data.neuron_mappings.CorticalMappedXYZPNeuronData()
 generated_mapped_neuron_data.insert(cortical_id_a, neurons_a)
 generated_mapped_neuron_data.insert(cortical_id_b, neurons_b)
+generated_mapped_neuron_data.insert(cortical_id_c, neurons_c)
 
 for (c_id, neurons) in generated_mapped_neuron_data.iter_easy():
     print("breakpoint")
