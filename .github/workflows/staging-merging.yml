@@ -211,9 +211,12 @@ jobs:
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "package_name=${PACKAGE_NAME}" >> "$GITHUB_OUTPUT"
       
-      - uses: actions/download-artifact@v4
+      - name: Download all artifacts into dist/
+        uses: actions/download-artifact@v4
         with:
           path: dist
+          merge-multiple: true
+
       
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v2
