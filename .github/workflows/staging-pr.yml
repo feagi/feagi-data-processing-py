@@ -51,19 +51,27 @@ jobs:
 
       - name: Check version number increase
         run: |
-          # Get current version from PR branch
-          CURRENT_VERSION=$(grep '^version = ' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+          # Get current version from PR branch (only the package version, not dependencies)
+          CURRENT_VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
           echo "PR branch version: $CURRENT_VERSION"
           
           # Download staging branch Cargo.toml
           curl -s https://raw.githubusercontent.com/feagi/feagi-data-processing-py/refs/heads/staging/Cargo.toml -o staging_cargo.toml
           
-          # Get version from staging branch
-          STAGING_VERSION=$(grep '^version = ' staging_cargo.toml | sed 's/version = "\(.*\)"/\1/')
+          # Get version from staging branch (only the package version, not dependencies)
+          STAGING_VERSION=$(grep '^version = ' staging_cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
           echo "Staging branch version: $STAGING_VERSION"
           
           # Clean up
           rm staging_cargo.toml
+          
+          # Validate versions are not empty
+          if [ -z "$CURRENT_VERSION" ] || [ -z "$STAGING_VERSION" ]; then
+            echo "❌ Error: Could not extract versions properly"
+            echo "Current: '$CURRENT_VERSION'"
+            echo "Staging: '$STAGING_VERSION'"
+            exit 1
+          fi
           
           # Compare versions
           if [ "$CURRENT_VERSION" = "$STAGING_VERSION" ]; then
@@ -80,8 +88,8 @@ jobs:
           from packaging import version
           import sys
           
-          staging_ver = os.environ['STAGING_VER']
-          current_ver = os.environ['CURRENT_VER']
+          staging_ver = os.environ['STAGING_VER'].strip()
+          current_ver = os.environ['CURRENT_VER'].strip()
           
           print(f'Comparing: {staging_ver} vs {current_ver}')
           
@@ -94,5 +102,7 @@ jobs:
                   print(f'✅ Version check passed: {staging_ver} → {current_ver}')
           except Exception as e:
               print(f'❌ Error parsing versions: {e}')
+              print(f'Staging version: "{staging_ver}"')
+              print(f'Current version: "{current_ver}"')
               sys.exit(1)
           EOF
