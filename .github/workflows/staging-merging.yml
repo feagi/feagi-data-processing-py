@@ -221,8 +221,14 @@ jobs:
       - name: Publish to TestPyPI
         uses: PyO3/maturin-action@v1
         with:
-          command: upload
-          args: --non-interactive --username __token__ --password ${{ secrets.TEST_PYPI_DATA_PROCESSING }} --skip-existing --repository-url https://test.pypi.org/legacy/ wheels-*/*
+          args: >
+            upload
+            --non-interactive
+            --username __token__
+            --password ${{ secrets.TEST_PYPI_DATA_PROCESSING }}
+            --skip-existing
+            --repository-url https://test.pypi.org/legacy/
+            wheels-*/*
       
       - name: Create prerelease tag
         run: |
