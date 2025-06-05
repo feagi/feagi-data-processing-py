@@ -71,13 +71,17 @@ jobs:
             exit 1
           fi
           
-          # Use Python for reliable version comparison
-          python3 -c "
+          # Use Python for reliable version comparison with environment variables
+          export STAGING_VER="$STAGING_VERSION"
+          export CURRENT_VER="$CURRENT_VERSION"
+          
+          python3 << 'EOF'
+          import os
           from packaging import version
           import sys
           
-          staging_ver = '$STAGING_VERSION'
-          current_ver = '$CURRENT_VERSION'
+          staging_ver = os.environ['STAGING_VER']
+          current_ver = os.environ['CURRENT_VER']
           
           print(f'Comparing: {staging_ver} vs {current_ver}')
           
@@ -91,4 +95,4 @@ jobs:
           except Exception as e:
               print(f'❌ Error parsing versions: {e}')
               sys.exit(1)
-          "
+          EOF
