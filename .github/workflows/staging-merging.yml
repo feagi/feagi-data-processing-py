@@ -181,12 +181,35 @@ jobs:
       - name: Get version from Cargo.toml
         id: version
         run: |
-          VERSION=$(grep '^version = ' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
-          PACKAGE_NAME=$(grep '^name = ' Cargo.toml | sed 's/name = "\(.*\)"/\1/' | tr '-' '_')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "package_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+          # Check if Cargo.toml exists
+          if [ ! -f "Cargo.toml" ]; then
+            echo "❌ Error: Cargo.toml not found"
+            exit 1
+          fi
+          
+          # Extract version
+          VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          if [ -z "$VERSION" ]; then
+            echo "❌ Error: Could not extract version from Cargo.toml"
+            cat Cargo.toml
+            exit 1
+          fi
+          
+          # Extract package name and convert hyphens to underscores for Python
+          PACKAGE_NAME=$(grep '^name = ' Cargo.toml | head -1 | sed 's/name = "\(.*\)"/\1/' | tr '-' '_')
+          if [ -z "$PACKAGE_NAME" ]; then
+            echo "❌ Error: Could not extract package name from Cargo.toml"
+            cat Cargo.toml
+            exit 1
+          fi
+          
+          # Output the values
           echo "Version: $VERSION"
           echo "Package name: $PACKAGE_NAME"
+          
+          # Set GitHub outputs
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "package_name=${PACKAGE_NAME}" >> "$GITHUB_OUTPUT"
       
       - uses: actions/download-artifact@v4
       
