@@ -6,15 +6,17 @@ use feagi_core_data_structures_and_processing::byte_structures::feagi_byte_struc
 use feagi_core_data_structures_and_processing::byte_structures::{FeagiByteStructureCompatible, FeagiByteStructureType};
 use crate::byte_structures::{PyFeagiByteStructureCompatible, PyFeagiByteStructureType as PyFBSType};
 use crate::neuron_data::neuron_mappings::PyCorticalMappedXYZPNeuronData;
+use crate::miscellaneous_types::json_structure::PyJsonStructure;
 
 /// Helper function to convert a Box<dyn FeagiByteStructureCompatible> to the appropriate Python object
 pub fn convert_compatible_to_python(py: Python, boxed_object: Box<dyn FeagiByteStructureCompatible>, structure_type: FeagiByteStructureType) -> PyResult<PyObject> {
     match structure_type {
         FeagiByteStructureType::JSON => {
-            // Assuming you have a PyJsonStructure wrapper
-            // let json_struct = boxed_object.downcast::<JsonStructure>().map_err(|_| PyValueError::new_err("Failed to downcast to JsonStructure"))?;
-            // Ok(PyJsonStructure { inner: *json_struct }.into_py(py))
-            Err(PyValueError::new_err("JSON structure conversion not yet implemented"))
+            // Convert the boxed trait object back to concrete type
+            // We'll create it from a byte structure instead
+            let temp_byte_struct = boxed_object.as_new_feagi_byte_structure().map_err(|e| PyValueError::new_err(format!("{:?}", e)))?;
+            let py_byte_struct = PyFeagiByteStructure { inner: temp_byte_struct };
+            PyJsonStructure::new_from_feagi_byte_structure(py, py_byte_struct)
         },
         FeagiByteStructureType::NeuronCategoricalXYZP => {
             // Convert the boxed trait object back to concrete type
