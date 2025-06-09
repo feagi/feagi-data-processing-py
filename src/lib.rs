@@ -2,6 +2,7 @@ mod brain_input;
 mod brain_output;
 mod byte_structures;
 mod cortical_data;
+mod miscellaneous_types;
 mod neuron_data;
 
 use numpy::ndarray::AssignElem;
@@ -100,6 +101,9 @@ fn feagi_data_processing(py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     add_python_class!(py, m, "byte_structures", byte_structures::PyFeagiByteStructureType);
     add_python_class!(py, m, "byte_structures", byte_structures::feagi_byte_structure::PyFeagiByteStructure);
+    add_python_class!(py, m, "byte_structures", byte_structures::PyFeagiByteStructureCompatible);
+
+    add_python_class!(py, m, "misc", miscellaneous_types::json_structure::PyJsonStructure);
 
     // add_python_class!(py, m, "brain_input.vision", brain_input::vision::quick_image_diff::PyQuickImageDiff);
     

@@ -9,12 +9,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ace50bade8e6234aa140d9a2f552bbee1db4d353f69b8217bc503490fc1a9f26"
 
 [[package]]
-name = "bytemuck"
-version = "1.23.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9134a6ef01ce4b366b50689c94f82c14bc72bc5d0386829828a2e2752ef7958c"
-
-[[package]]
 name = "byteorder"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -28,7 +22,7 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "feagi-data-processing"
-version = "0.0.32"
+version = "0.0.34"
 dependencies = [
  "feagi_core_data_structures_and_processing",
  "ndarray",
@@ -39,11 +33,10 @@ dependencies = [
 
 [[package]]
 name = "feagi_core_data_structures_and_processing"
-version = "0.0.40"
+version = "0.0.43"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a0c677f14318b35ce62ab1c52dc014133824004931f939e460fe63d427ccd8e"
+checksum = "5033b89fc793cc7b758ba202676467dba1551c36d9c3d72d9f4796ce84ac3ccd"
 dependencies = [
- "bytemuck",
  "byteorder",
  "ndarray",
  "serde_json",

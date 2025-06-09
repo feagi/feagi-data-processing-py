@@ -3,8 +3,11 @@
 
 pub mod feagi_byte_structure;
 
-use pyo3::pyclass;
+use pyo3::{pyclass, pymethods, PyResult};
 use feagi_core_data_structures_and_processing::byte_structures::FeagiByteStructureType;
+use feagi_core_data_structures_and_processing::error::DataProcessingError;
+use pyo3::exceptions::PyValueError;
+use crate::byte_structures::feagi_byte_structure::PyFeagiByteStructure;
 
 #[pyclass(eq, eq_int)]
 #[derive(PartialEq, Clone)]
@@ -30,5 +33,34 @@ impl PyFeagiByteStructureType{
             PyFeagiByteStructureType::MultiStructHolder => FeagiByteStructureType::MultiStructHolder,
             PyFeagiByteStructureType::NeuronCategoricalXYZP => FeagiByteStructureType::NeuronCategoricalXYZP,
         }
+    }
+}
+
+#[pyclass(subclass)]
+#[pyo3(name = "FeagiByteStructureCompatible")]
+pub struct PyFeagiByteStructureCompatible {}
+
+#[pymethods]
+impl PyFeagiByteStructureCompatible {
+    
+    #[new]
+    pub fn new() -> Self {
+        PyFeagiByteStructureCompatible {}
+    }
+    
+    #[getter]
+    pub fn struct_type(&self) -> PyFeagiByteStructureType {
+        PyFeagiByteStructureType::from_base(FeagiByteStructureType::JSON) // This is a overridden placeholder
+    }
+    
+    pub fn version(&self) -> u8 { 0 } // This is a overridden placeholder
+    
+    #[staticmethod]
+    pub fn new_from_feagi_byte_structure(_byte_structure: PyFeagiByteStructure) -> PyResult<Self> where Self: Sized {
+        Err(PyValueError::new_err("Not properly overridden PyFeagiByteStructureCompatible abstract member!"))
+    }
+    
+    pub fn as_new_feagi_byte_structure(&self) -> PyResult<PyFeagiByteStructure> {
+        Err(PyValueError::new_err("Not properly overridden PyFeagiByteStructureCompatible abstract member!"))
     }
 }

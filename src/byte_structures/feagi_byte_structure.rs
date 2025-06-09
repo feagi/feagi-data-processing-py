@@ -1,9 +1,38 @@
-use pyo3::{pyclass, pymethods, PyResult};
+use pyo3::{pyclass, pymethods, PyResult, PyObject};
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
-use pyo3::types::PyBytes;
-use feagi_core_data_structures_and_processing::byte_structures::FeagiByteStructureType;
+use pyo3::types::{PyBytes, PyList};
 use feagi_core_data_structures_and_processing::byte_structures::feagi_byte_structure::FeagiByteStructure;
+use feagi_core_data_structures_and_processing::byte_structures::{FeagiByteStructureCompatible, FeagiByteStructureType};
+use crate::byte_structures::{PyFeagiByteStructureCompatible, PyFeagiByteStructureType as PyFBSType};
+use crate::neuron_data::neuron_mappings::PyCorticalMappedXYZPNeuronData;
+use crate::miscellaneous_types::json_structure::PyJsonStructure;
+
+/// Helper function to convert a Box<dyn FeagiByteStructureCompatible> to the appropriate Python object
+pub fn convert_compatible_to_python(py: Python, boxed_object: Box<dyn FeagiByteStructureCompatible>, structure_type: FeagiByteStructureType) -> PyResult<PyObject> {
+    match structure_type {
+        FeagiByteStructureType::JSON => {
+            // Convert the boxed trait object back to concrete type
+            // We'll create it from a byte structure instead
+            let temp_byte_struct = boxed_object.as_new_feagi_byte_structure().map_err(|e| PyValueError::new_err(format!("{:?}", e)))?;
+            let py_byte_struct = PyFeagiByteStructure { inner: temp_byte_struct };
+            PyJsonStructure::new_from_feagi_byte_structure(py, py_byte_struct)
+        },
+        FeagiByteStructureType::NeuronCategoricalXYZP => {
+            // Convert the boxed trait object back to concrete type
+            // We'll create it from a byte structure instead
+            let temp_byte_struct = boxed_object.as_new_feagi_byte_structure().map_err(|e| PyValueError::new_err(format!("{:?}", e)))?;
+            let py_byte_struct = PyFeagiByteStructure { inner: temp_byte_struct };
+            PyCorticalMappedXYZPNeuronData::new_from_feagi_byte_structure(py, py_byte_struct)
+        },
+        FeagiByteStructureType::MultiStructHolder => {
+            Err(PyValueError::new_err("Cannot convert multistruct holder to single compatible object"))
+        },
+        _ => {
+            Err(PyValueError::new_err(format!("Unsupported structure type for conversion: {:?}", structure_type)))
+        }
+    }
+}
 
 #[pyclass]
 #[pyo3(name = "FeagiByteStructure")]
@@ -15,9 +44,10 @@ pub struct PyFeagiByteStructure{
 #[pymethods]
 impl PyFeagiByteStructure {
     
+    //region Constructors
     /// Create a new FeagiByteStructure from bytes
     #[new]
-    pub fn new<'py>(py: Python<'py>, bytes: Bound<'py, PyBytes>) -> PyResult<Self> {
+    pub fn create_from_bytes<'py>(py: Python<'py>, bytes: Bound<'py, PyBytes>) -> PyResult<Self> {
         let bytes_vec = bytes.as_bytes().to_vec();
         match FeagiByteStructure::create_from_bytes(bytes_vec) {
             Ok(inner) => Ok(PyFeagiByteStructure { inner }),
@@ -25,24 +55,148 @@ impl PyFeagiByteStructure {
         }
     }
     
-    /// Try to get the structure type
-    pub fn try_get_structure_type(&self) -> PyResult<u8> {
-        match self.inner.try_get_structure_type() {
-            Ok(structure_type) => Ok(structure_type as u8),
+    #[staticmethod]
+    pub fn create_from_2_existing(a: PyFeagiByteStructure, b: PyFeagiByteStructure) -> PyResult<Self> {
+        let result = FeagiByteStructure::create_from_2_existing(&a.inner, &b.inner);
+        match result {
+            Ok(inner) => Ok(PyFeagiByteStructure { inner }),
             Err(e) => Err(PyValueError::new_err(format!("{:?}", e))),
         }
     }
     
-    /// Get the version number
-    pub fn get_version(&self) -> u8 {
-        self.inner.get_version()
+    #[staticmethod]
+    pub fn create_from_multiple_existing(existing_list: Bound<'_, PyList>) -> PyResult<Self> {
+        // First collect all the borrowed items to keep them alive
+        let borrowed_items: Vec<_> = existing_list
+            .iter()
+            .map(|item| {
+                let bound_item = item.downcast::<PyFeagiByteStructure>().unwrap();
+                bound_item.borrow()
+            })
+            .collect();
+
+        // Now create references from the borrowed items
+        let rust_structs: Vec<&FeagiByteStructure> = borrowed_items
+            .iter()
+            .map(|borrowed| &borrowed.inner)
+            .collect();
+
+        let result = FeagiByteStructure::create_from_multiple_existing(rust_structs);
+        match result {
+            Ok(inner) => Ok(PyFeagiByteStructure { inner }),
+            Err(e) => Err(PyValueError::new_err(format!("{:?}", e))),
+        }
     }
     
-    /// Get the data as a bytes copy
-    pub fn get_data_as_bytes(&self) -> Vec<u8> {
-        self.inner.borrow_data_as_slice().to_vec()
+    #[staticmethod]
+    pub fn create_from_compatible(object: Bound<'_, PyFeagiByteStructureCompatible>) -> PyResult<Self> {
+        object.borrow().as_new_feagi_byte_structure()
+    }
+
+    //endregion
+    
+    //region Get Properties
+    
+    #[getter]
+    pub fn structure_type(&self) -> PyResult<PyFBSType> {
+        let result = self.inner.try_get_structure_type();
+        match result {
+            Ok(inner) => Ok(PyFBSType::from_base(inner)),
+            Err(e) => Err(PyValueError::new_err(format!("{:?}", e))),
+        }
     }
     
+    #[getter]
+    pub fn version(&self) -> PyResult<u8> {
+        let result = self.inner.try_get_version();
+        match result {
+            Ok(inner) => Ok(inner),
+            Err(e) => Err(PyValueError::new_err(format!("{:?}", e))),
+        }
+    }
+    
+    #[getter]
+    pub fn is_multistruct(&self) -> PyResult<bool> {
+        let result = self.inner.is_multistruct();
+        match result {
+            Ok(inner) => Ok(inner),
+            Err(e) => Err(PyValueError::new_err(format!("{:?}", e))),
+        }
+    }
+
+    #[getter]
+    pub fn contained_structure_count(&self) -> PyResult<usize> {
+        let result = self.inner.contained_structure_count();
+        match result {
+            Ok(inner) => Ok(inner),
+            Err(e) => Err(PyValueError::new_err(format!("{:?}", e))),
+        }
+    }
+    
+    pub fn get_ordered_object_types<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyList>> {
+         let result = self.inner.get_ordered_object_types();
+         match result {
+             Ok(types) => {
+                 let py_types: Vec<PyFBSType> = types
+                     .into_iter()
+                     .map(|t| PyFBSType::from_base(t))
+                     .collect();
+                 PyList::new(py, py_types)
+             },
+             Err(e) => Err(PyValueError::new_err(format!("{:?}", e))),
+         }
+     }
+    
+    pub fn copy_out_single_byte_structure_from_multistruct(&self, index: usize) -> PyResult<PyFeagiByteStructure> {
+        let result = self.inner.copy_out_single_byte_structure_from_multistruct(index);
+        match result {
+            Ok(inner_struct) => Ok(PyFeagiByteStructure { inner: inner_struct }),
+            Err(e) => Err(PyValueError::new_err(format!("{:?}", e))),
+        }
+    }
+    
+    pub fn copy_out_single_object_from_single_struct<'py>(&self, py: Python<'py>) -> PyResult<PyObject> {
+        let result = self.inner.copy_out_single_object_from_single_struct();
+        match result {
+            Ok(boxed_object) => {
+                let structure_type = self.inner.try_get_structure_type().map_err(|e| PyValueError::new_err(format!("{:?}", e)))?;
+                convert_compatible_to_python(py, boxed_object, structure_type)
+            },
+            Err(e) => Err(PyValueError::new_err(format!("{:?}", e))),
+        }
+    }
+    
+    pub fn copy_out_single_object_from_multistruct<'py>(&self, py: Python<'py>, index: usize) -> PyResult<PyObject> {
+        let result = self.inner.copy_out_single_object_from_multistruct(index);
+        match result {
+            Ok(boxed_object) => {
+                // For multistruct, we need to get the structure type of the specific index
+                let temp_struct = self.inner.copy_out_single_byte_structure_from_multistruct(index).map_err(|e| PyValueError::new_err(format!("{:?}", e)))?;
+                let structure_type = temp_struct.try_get_structure_type().map_err(|e| PyValueError::new_err(format!("{:?}", e)))?;
+                convert_compatible_to_python(py, boxed_object, structure_type)
+            },
+            Err(e) => Err(PyValueError::new_err(format!("{:?}", e))),
+        }
+    }
+    
+    pub fn copy_out_as_byte_vector<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+        Ok(PyBytes::new(py, self.inner.borrow_data_as_slice()))
+    }
+    
+    //endregion
+
+    //region Interactions with Internal Vector
+
+    /// Get count of wasted capacity
+    pub fn get_wasted_capacity_count(&self) -> usize {
+        self.inner.get_wasted_capacity_count()
+    }
+
+    /// Get utilized capacity as a percentage
+    pub fn get_utilized_capacity_percentage(&self) -> f32 {
+        self.inner.get_utilized_capacity_percentage()
+    }
+
     /// Ensure capacity of at least the specified size
     pub fn ensure_capacity_of_at_least(&mut self, size: usize) -> PyResult<()> {
         match self.inner.ensure_capacity_of_at_least(size) {
@@ -50,48 +204,18 @@ impl PyFeagiByteStructure {
             Err(e) => Err(PyValueError::new_err(format!("{:?}", e))),
         }
     }
-    
+
     /// Shed wasted capacity to free up memory
     pub fn shed_wasted_capacity(&mut self) {
         self.inner.shed_wasted_capacity();
     }
-    
+
     /// Reset write index (truncate to 0 length)
     pub fn reset_write_index(&mut self) {
         self.inner.reset_write_index();
     }
     
-    /// Get count of wasted capacity
-    pub fn get_wasted_capacity_count(&self) -> usize {
-        self.inner.get_wasted_capacity_count()
-    }
+    //endregion
     
-    /// Get utilized capacity as a percentage
-    pub fn get_utilized_capacity_percentage(&self) -> f32 {
-        self.inner.get_utilized_capacity_percentage()
-    }
 
-    // Return as copy of Python Bytes
-    pub fn copy_as_bytes<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-        Ok(PyBytes::new(py, self.inner.borrow_data_as_slice()))
-    }
-
-    /*
-    /// String representation for debugging
-    pub fn __repr__(&self) -> String {
-        format!(
-            "FeagiByteStructure(type={}, version={}, len={}, capacity={})",
-            self.try_get_structure_type().unwrap_or(0),
-            self.get_version(),
-            self.len(),
-            self.capacity()
-        )
-    }
-    
-    /// String representation
-    pub fn __str__(&self) -> String {
-        self.__repr__()
-    }
-
-     */
 }

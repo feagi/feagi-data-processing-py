@@ -36,17 +36,32 @@ generated_mapped_neuron_data.insert(cortical_id_b, neurons_b)
 generated_mapped_neuron_data.insert(cortical_id_c, neurons_c)
 
 for (c_id, neurons) in generated_mapped_neuron_data.iter_easy():
-    print("breakpoint")
+    print("breakpoint1")
 
-byte_data = generated_mapped_neuron_data.as_new_feagi_byte_structure()
-bytes = byte_data.copy_as_bytes()
+neuron_fbs = generated_mapped_neuron_data.as_new_feagi_byte_structure()
+bytes = neuron_fbs.copy_out_as_byte_vector()
 
 received_byte_data = fdp.byte_structures.FeagiByteStructure(bytes)
-received_cortical_mappings = fdp.neuron_data.neuron_mappings.CorticalMappedXYZPNeuronData.from_feagi_byte_structure(received_byte_data)
+received_cortical_mappings = fdp.neuron_data.neuron_mappings.CorticalMappedXYZPNeuronData.new_from_feagi_byte_structure(received_byte_data)
 for (c_id, neurons) in received_cortical_mappings.iter_easy():
-    print("breakpoint")
+    print("breakpoint2")
 
-print("pause")
+
+
+
+json_example_str = """{"Hello":"World"}"""
+json_obj = fdp.misc.JsonStructure.from_json_string(json_example_str)
+json_fbs = json_obj.as_new_feagi_byte_structure()
+
+combo_fbs = fdp.byte_structures.FeagiByteStructure.create_from_2_existing(neuron_fbs, json_fbs)
+combo_bytes = combo_fbs.copy_out_as_byte_vector()
+
+combo_fbs_received = fdp.byte_structures.FeagiByteStructure(combo_bytes)
+received_neuron_fbs_2 = combo_fbs_received.copy_out_single_byte_structure_from_multistruct(0)
+received_neuron_data = received_neuron_fbs_2.copy_out_single_object_from_single_struct()
+received_json_obj = combo_fbs_received.copy_out_single_object_from_multistruct(1) # skip fbs in this example
+print(received_json_obj)
+
 #fake_image_source = np.zeros((2000,2000,3), dtype=np.float32)
 #[1,1,1] = 1
 
