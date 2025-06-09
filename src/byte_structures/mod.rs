@@ -51,7 +51,7 @@ impl PyFeagiByteStructureCompatible {
     pub fn version(&self) -> u8 { 0 } // This is a overridden placeholder
     
     #[staticmethod]
-    pub fn new_from_feagi_byte_structure() -> PyResult<Self> where Self: Sized {
+    pub fn new_from_feagi_byte_structure(_byte_structure: PyFeagiByteStructure) -> PyResult<Self> where Self: Sized {
         Err(PyValueError::new_err("Not properly overridden PyFeagiByteStructureCompatible abstract member!"))
     }
     

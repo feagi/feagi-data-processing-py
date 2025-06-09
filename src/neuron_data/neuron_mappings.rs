@@ -1,4 +1,4 @@
-use feagi_core_data_structures_and_processing::byte_structures::feagi_byte_structure::{FeagiByteStructure, FeagiByteStructureCompatible};
+use feagi_core_data_structures_and_processing::byte_structures::{FeagiByteStructureCompatible, FeagiByteStructureType};
 use pyo3::{pyclass, pymethods, PyResult, Py};
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
@@ -6,10 +6,11 @@ use ndarray::Array1;
 use numpy::PyArray1;
 use feagi_core_data_structures_and_processing::neuron_data::neuron_mappings::*;
 use crate::byte_structures::feagi_byte_structure::PyFeagiByteStructure;
+use crate::byte_structures::{PyFeagiByteStructureCompatible, PyFeagiByteStructureType};
 use crate::cortical_data::{PyCorticalID};
 use super::neuron_arrays::{PyNeuronXYZPArrays, tuple_nd_array_to_tuple_np_array};
 
-#[pyclass]
+#[pyclass(extends=PyFeagiByteStructureCompatible)]
 #[derive(Clone)]
 #[pyo3(name = "CorticalMappedXYZPNeuronData")]
 pub struct PyCorticalMappedXYZPNeuronData { // HashMap<CorticalID, NeuronYXCPArrays>
@@ -18,19 +19,40 @@ pub struct PyCorticalMappedXYZPNeuronData { // HashMap<CorticalID, NeuronYXCPArr
 
 #[pymethods]
 impl PyCorticalMappedXYZPNeuronData {
+    
+    //region Definitions for base class
+
+    #[getter]
+    pub fn struct_type(&self) -> PyFeagiByteStructureType {
+        PyFeagiByteStructureType::NeuronCategoricalXYZP
+    }
+
+    pub fn version(&self) -> u8 { self.inner.get_version() } // This is a overridden placeholder
+
+    #[staticmethod]
+    pub fn new_from_feagi_byte_structure(byte_structure: PyFeagiByteStructure) -> PyResult<PyCorticalMappedXYZPNeuronData> where Self: Sized {
+        let result = CorticalMappedXYZPNeuronData::new_from_feagi_byte_structure(&byte_structure.inner);
+        match result {
+            Ok(inner) => Ok(PyCorticalMappedXYZPNeuronData { inner }),
+            Err(e) => Err(PyValueError::new_err(e.to_string()))
+        }
+    }
+
+    pub fn as_new_feagi_byte_structure(&self) -> PyResult<PyFeagiByteStructure> {
+        let result = self.inner.as_new_feagi_byte_structure();
+        match result {
+            Ok(result) => Ok(PyFeagiByteStructure { inner: result }),
+            Err(error) => Err(PyValueError::new_err(error.to_string())),
+        }
+    }
+    
+    //endregion
+    
+    
     #[new]
     pub fn new() -> PyCorticalMappedXYZPNeuronData {
         PyCorticalMappedXYZPNeuronData {
             inner: CorticalMappedXYZPNeuronData::new()
-        }
-    }
-    
-    #[staticmethod]
-    pub fn from_feagi_byte_structure(byte_structure: PyFeagiByteStructure) -> PyResult<Self> {
-        let result = CorticalMappedXYZPNeuronData::new_from_feagi_byte_structure(byte_structure.inner);
-        match result {
-            Ok(inner) => Ok(PyCorticalMappedXYZPNeuronData { inner }),
-            Err(e) => Err(PyValueError::new_err(e.to_string()))
         }
     }
 
@@ -84,15 +106,6 @@ impl PyCorticalMappedXYZPNeuronData {
     }
     
     
-    
-    // TODO use inheritance properly
-    pub fn as_new_feagi_byte_structure(&self) -> PyResult<PyFeagiByteStructure> {
-        let result = self.inner.as_new_feagi_byte_structure();
-        match result {
-            Ok(result) => Ok(PyFeagiByteStructure { inner: result }),
-            Err(error) => Err(PyValueError::new_err(error.to_string())),
-        }
-    }
 
 }
 
