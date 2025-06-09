@@ -3,11 +3,12 @@ use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
 use pyo3::types::{PyBytes, PyList};
 use feagi_core_data_structures_and_processing::byte_structures::feagi_byte_structure::FeagiByteStructure;
-use feagi_core_data_structures_and_processing::byte_structures::FeagiByteStructureType;
+use feagi_core_data_structures_and_processing::byte_structures::{FeagiByteStructureCompatible, FeagiByteStructureType};
 use crate::byte_structures::{PyFeagiByteStructureCompatible, PyFeagiByteStructureType as PyFBSType};
+use crate::neuron_data::neuron_mappings::PyCorticalMappedXYZPNeuronData;
 
 /// Helper function to convert a Box<dyn FeagiByteStructureCompatible> to the appropriate Python object
-pub fn convert_compatible_to_python(py: Python, boxed_object: Box<dyn feagi_core_data_structures_and_processing::byte_structures::FeagiByteStructureCompatible>, structure_type: FeagiByteStructureType) -> PyResult<PyObject> {
+pub fn convert_compatible_to_python(py: Python, boxed_object: Box<dyn FeagiByteStructureCompatible>, structure_type: FeagiByteStructureType) -> PyResult<PyObject> {
     match structure_type {
         FeagiByteStructureType::JSON => {
             // Assuming you have a PyJsonStructure wrapper
@@ -16,10 +17,14 @@ pub fn convert_compatible_to_python(py: Python, boxed_object: Box<dyn feagi_core
             Err(PyValueError::new_err("JSON structure conversion not yet implemented"))
         },
         FeagiByteStructureType::NeuronCategoricalXYZP => {
-            // Assuming you have a PyCorticalMappedXYZPNeuronData wrapper
-            // let neuron_data = boxed_object.downcast::<CorticalMappedXYZPNeuronData>().map_err(|_| PyValueError::new_err("Failed to downcast to CorticalMappedXYZPNeuronData"))?;
-            // Ok(PyCorticalMappedXYZPNeuronData { inner: *neuron_data }.into_py(py))
-            Err(PyValueError::new_err("Neuron XYZP structure conversion not yet implemented"))
+            // Convert the boxed trait object back to concrete type
+            // We'll create it from a byte structure instead
+            let temp_byte_struct = boxed_object.as_new_feagi_byte_structure().map_err(|e| PyValueError::new_err(format!("{:?}", e)))?;
+            let py_byte_struct = PyFeagiByteStructure { inner: temp_byte_struct };
+            let neuron_data = PyCorticalMappedXYZPNeuronData::new_from_feagi_byte_structure(py_byte_struct)?;
+            let parent = PyFeagiByteStructureCompatible::new();
+            let py_obj = Py::new(py, (neuron_data, parent))?;
+            Ok(py_obj.into())
         },
         FeagiByteStructureType::MultiStructHolder => {
             Err(PyValueError::new_err("Cannot convert multistruct holder to single compatible object"))

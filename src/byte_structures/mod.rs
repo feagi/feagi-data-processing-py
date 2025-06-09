@@ -43,6 +43,11 @@ pub struct PyFeagiByteStructureCompatible {}
 #[pymethods]
 impl PyFeagiByteStructureCompatible {
     
+    #[new]
+    pub fn new() -> Self {
+        PyFeagiByteStructureCompatible {}
+    }
+    
     #[getter]
     pub fn struct_type(&self) -> PyFeagiByteStructureType {
         PyFeagiByteStructureType::from_base(FeagiByteStructureType::JSON) // This is a overridden placeholder

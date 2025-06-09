@@ -2,7 +2,6 @@ use feagi_core_data_structures_and_processing::byte_structures::{FeagiByteStruct
 use pyo3::{pyclass, pymethods, PyResult, Py};
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
-use ndarray::Array1;
 use numpy::PyArray1;
 use feagi_core_data_structures_and_processing::neuron_data::neuron_mappings::*;
 use crate::byte_structures::feagi_byte_structure::PyFeagiByteStructure;
@@ -50,10 +49,13 @@ impl PyCorticalMappedXYZPNeuronData {
     
     
     #[new]
-    pub fn new() -> PyCorticalMappedXYZPNeuronData {
-        PyCorticalMappedXYZPNeuronData {
-            inner: CorticalMappedXYZPNeuronData::new()
-        }
+    pub fn new() -> (PyCorticalMappedXYZPNeuronData, PyFeagiByteStructureCompatible) {
+        (
+            PyCorticalMappedXYZPNeuronData {
+                inner: CorticalMappedXYZPNeuronData::new()
+            },
+            PyFeagiByteStructureCompatible::new()
+        )
     }
 
     pub fn insert(&mut self, cortical_id: PyCorticalID, data: PyNeuronXYZPArrays) -> PyResult<()> {
