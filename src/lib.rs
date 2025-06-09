@@ -103,7 +103,7 @@ fn feagi_data_processing(py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     add_python_class!(py, m, "byte_structures", byte_structures::feagi_byte_structure::PyFeagiByteStructure);
     add_python_class!(py, m, "byte_structures", byte_structures::PyFeagiByteStructureCompatible);
 
-    add_python_class!(py, m, "miscellaneous_types", miscellaneous_types::json_structure::PyJsonStructure);
+    add_python_class!(py, m, "misc", miscellaneous_types::json_structure::PyJsonStructure);
 
     // add_python_class!(py, m, "brain_input.vision", brain_input::vision::quick_image_diff::PyQuickImageDiff);
     
