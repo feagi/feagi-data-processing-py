@@ -89,9 +89,14 @@ impl PySegmentedVisionFrame {
     //endregion 
     
     //region Neuron Export
-    pub fn export_as_new_cortical_mapped_neuron_data(&mut self, camera_index: u8) -> PyResult<PyCorticalMappedXYZPNeuronData> {
+    pub fn export_as_new_cortical_mapped_neuron_data<'py>(&mut self, py: Python<'py>, camera_index: u8) -> PyResult<PyObject> {
         match self.inner.export_as_new_cortical_mapped_neuron_data(camera_index) {
-            Ok(neuron_data) => Ok(PyCorticalMappedXYZPNeuronData { inner: neuron_data }),
+            Ok(neuron_data) => {
+                let child = PyCorticalMappedXYZPNeuronData { inner: neuron_data };
+                let parent = crate::byte_structures::PyFeagiByteStructureCompatible::new();
+                let py_obj = Py::new(py, (child, parent))?;
+                Ok(py_obj.into())
+            },
             Err(err) => Err(PyErr::new::<PyValueError, _>(err.to_string())),
         }
     }

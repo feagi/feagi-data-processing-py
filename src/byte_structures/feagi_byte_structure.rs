@@ -21,10 +21,7 @@ pub fn convert_compatible_to_python(py: Python, boxed_object: Box<dyn FeagiByteS
             // We'll create it from a byte structure instead
             let temp_byte_struct = boxed_object.as_new_feagi_byte_structure().map_err(|e| PyValueError::new_err(format!("{:?}", e)))?;
             let py_byte_struct = PyFeagiByteStructure { inner: temp_byte_struct };
-            let neuron_data = PyCorticalMappedXYZPNeuronData::new_from_feagi_byte_structure(py_byte_struct)?;
-            let parent = PyFeagiByteStructureCompatible::new();
-            let py_obj = Py::new(py, (neuron_data, parent))?;
-            Ok(py_obj.into())
+            PyCorticalMappedXYZPNeuronData::new_from_feagi_byte_structure(py, py_byte_struct)
         },
         FeagiByteStructureType::MultiStructHolder => {
             Err(PyValueError::new_err("Cannot convert multistruct holder to single compatible object"))

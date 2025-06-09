@@ -29,10 +29,15 @@ impl PyCorticalMappedXYZPNeuronData {
     pub fn version(&self) -> u8 { self.inner.get_version() } // This is a overridden placeholder
 
     #[staticmethod]
-    pub fn new_from_feagi_byte_structure(byte_structure: PyFeagiByteStructure) -> PyResult<PyCorticalMappedXYZPNeuronData> where Self: Sized {
+    pub fn new_from_feagi_byte_structure<'py>(py: Python<'py>, byte_structure: PyFeagiByteStructure) -> PyResult<PyObject> where Self: Sized {
         let result = CorticalMappedXYZPNeuronData::new_from_feagi_byte_structure(&byte_structure.inner);
         match result {
-            Ok(inner) => Ok(PyCorticalMappedXYZPNeuronData { inner }),
+            Ok(inner) => {
+                let child = PyCorticalMappedXYZPNeuronData { inner };
+                let parent = PyFeagiByteStructureCompatible::new();
+                let py_obj = Py::new(py, (child, parent))?;
+                Ok(py_obj.into()) // TODO we need to implement this as a proper function
+            },
             Err(e) => Err(PyValueError::new_err(e.to_string()))
         }
     }
