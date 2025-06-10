@@ -95,8 +95,7 @@ fn feagi_data_processing(py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     add_python_class!(py, m, "brain_input.vision.descriptors", brain_input::vision::descriptors::PyMemoryOrderLayout);
     add_python_class!(py, m, "brain_input.vision.descriptors", brain_input::vision::descriptors::PySegmentedVisionFrameSourceCroppingPointGrouping);
     
-    add_python_class!(py, m, "brain_input.vision", brain_input::vision::image_frame::PyImageFrame);
-
+    add_python_class!(py, m, "brain_input.vision", brain_input::vision::segmented_vision_frame::PySegmentedVisionFrame);
     add_python_class!(py, m, "brain_input.vision", brain_input::vision::image_frame::PyImageFrame);
 
     add_python_class!(py, m, "byte_structures", byte_structures::PyFeagiByteStructureType);
