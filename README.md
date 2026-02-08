@@ -14,17 +14,27 @@ Built with [PyO3](https://github.com/PyO3/pyo3) and [Maturin](https://github.com
 
 ## Installation
 
-### From TestPyPI (Staging)
+### From PyPI (recommended)
+
+Pre-built wheels are published for Linux, Windows, and macOS (x86_64 and aarch64). Prefer this so you do not need a Rust toolchain:
+
+```bash
+pip install feagi-rust-py-libs
+```
+
+### From TestPyPI (staging)
 
 ```bash
 pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ feagi-rust-py-libs
 ```
 
-### From PyPI (Production)
+### Building from source
 
-```bash
-pip install feagi-rust-py-libs
-```
+If pip falls back to building from source (e.g. no wheel for your platform), you need **Rust 1.85 or newer**. A transitive dependency uses the Rust 2024 edition, which is not supported by older Cargo/Rust.
+
+- Check version: `rustc --version` and `cargo --version`
+- Install or upgrade: <https://rustup.rs/> then `rustup update stable`
+- Then: `pip install feagi-rust-py-libs`
 
 ## Usage
 
