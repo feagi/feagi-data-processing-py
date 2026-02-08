@@ -25,11 +25,21 @@ jobs:
           TAG="${{ github.event.release.tag_name }}"
           VERSION="${TAG#v}"  # Strip 'v' prefix
           IS_PRERELEASE="${{ github.event.release.prerelease }}"
-          
+
+          # Fail fast: Cargo.toml package version must match release tag (no builds run if this fails)
+          CARGO_VERSION=$(grep -E '^version = ' Cargo.toml | head -1 | sed 's/^version = *"\(.*\)".*/\1/')
+          if [[ "$CARGO_VERSION" != "$VERSION" ]]; then
+            echo "❌ ERROR: Cargo.toml version does not match release tag"
+            echo "  Release tag (version): $VERSION"
+            echo "  Cargo.toml (package): $CARGO_VERSION"
+            echo ""
+            echo "Bump Cargo.toml to match the release tag before publishing, then re-run."
+            exit 1
+          fi
+          echo "✅ Cargo.toml version matches release tag ($VERSION)"
+
           # Validate PEP 440 compliance
           echo "🔍 Validating version format: $VERSION"
-          
-          # PEP 440 regex pattern
           if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(a[0-9]+|b[0-9]+|rc[0-9]+)?(\.post[0-9]+)?(\.dev[0-9]+)?$ ]]; then
             echo "❌ ERROR: Version '$VERSION' does not comply with PEP 440"
             echo ""
@@ -44,7 +54,6 @@ jobs:
             echo "  - v0.1.0        (v prefix not allowed)"
             exit 1
           fi
-          
           echo "✅ Version format is PEP 440 compliant"
           echo ""
           echo "📦 Version: $VERSION"
@@ -67,7 +76,12 @@ jobs:
             target: aarch64
     steps:
       - uses: actions/checkout@v4
-      
+
+      - name: Install Rust 1.85
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.85"
+
       - name: Update Cargo.toml version
         run: |
           VERSION="${{ needs.validate-version.outputs.version }}"
@@ -160,7 +174,12 @@ jobs:
             target: aarch64
     steps:
       - uses: actions/checkout@v4
-      
+
+      - name: Install Rust 1.85
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.85"
+
       - name: Update Cargo.toml version
         run: |
           VERSION="${{ needs.validate-version.outputs.version }}"
@@ -252,7 +271,12 @@ jobs:
             target: x86
     steps:
       - uses: actions/checkout@v4
-      
+
+      - name: Install Rust 1.85
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.85"
+
       - name: Update Cargo.toml version
         shell: bash
         run: |
@@ -301,7 +325,12 @@ jobs:
             target: x86_64
     steps:
       - uses: actions/checkout@v4
-      
+
+      - name: Install Rust 1.85
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.85"
+
       - name: Update Cargo.toml version
         run: |
           VERSION="${{ needs.validate-version.outputs.version }}"
@@ -342,7 +371,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
+      - name: Install Rust 1.85
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.85"
+
       - name: Update Cargo.toml version
         run: |
           VERSION="${{ needs.validate-version.outputs.version }}"
