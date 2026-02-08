@@ -30,9 +30,9 @@ classifiers = [
 dynamic = ["version"]
 
 [project.urls]
-"Homepage" = "https://github.com/Neuraville/FEAGI-2.0"
-"Bug Tracker" = "https://github.com/Neuraville/FEAGI-2.0/issues"
-"Documentation" = "https://docs.feagi.org"
+"Homepage" = "https://github.com/feagi/feagi-rust-py-libs"
+"Bug Tracker" = "https://github.com/feagi/feagi-rust-py-libs/issues"
+"Documentation" = "https://github.com/feagi/feagi-rust-py-libs#readme"
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
