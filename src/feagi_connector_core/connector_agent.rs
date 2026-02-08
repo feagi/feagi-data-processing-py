@@ -1,9 +1,10 @@
 
 use std::sync::MutexGuard;
 use std::time::Instant;
-use pyo3::{pyclass, pymethods, PyResult};
+use pyo3::pymethods;
 use pyo3::types::{PyByteArray, PyBytes};
 use pyo3::prelude::*;
+use pyo3::PyResult;
 use feagi_data_structures::{motor_cortical_units, sensor_cortical_units, FeagiDataError};
 use feagi_data_structures::genomic::cortical_area::descriptors::*;
 use feagi_data_structures::genomic::cortical_area::io_cortical_area_configuration_flag::FrameChangeHandling;
@@ -15,7 +16,7 @@ use feagi_sensorimotor::data_types::*;
 use feagi_sensorimotor::data_types::descriptors::*;
 use feagi_sensorimotor::wrapped_io_data::WrappedIOData;
 use crate::feagi_connector_core::data_types::descriptors::PyMiscDataDimensions;
-use crate::{create_pyclass_no_clone, __base_py_class_shared};
+use crate::create_pyclass_no_clone_unsendable;
 use crate::py_error::PyFeagiError;
 use crate::feagi_connector_core::data_types::descriptors::*;
 use crate::feagi_connector_core::data_pipeline::pipeline_stage_properties::PyPipelineStageProperties;
@@ -881,7 +882,7 @@ macro_rules! motor_unit_functions {
 
 }
 
-create_pyclass_no_clone!(PyConnectorAgent, ConnectorAgent, "ConnectorAgent");
+create_pyclass_no_clone_unsendable!(PyConnectorAgent, ConnectorAgent, "ConnectorAgent");
 
 impl PyConnectorAgent {
     fn get_sensor_cache(&self) -> MutexGuard<'_, SensorDeviceCache> {

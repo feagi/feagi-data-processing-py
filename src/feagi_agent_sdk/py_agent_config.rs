@@ -37,7 +37,6 @@ fn parse_motor_unit(unit: &str) -> PyResult<feagi_io::MotorUnit> {
         "count_output" => Ok(feagi_io::MotorUnit::CountOutput),
         "object_segmentation" => Ok(feagi_io::MotorUnit::ObjectSegmentation),
         "simple_vision_output" => Ok(feagi_io::MotorUnit::SimpleVisionOutput),
-        "dynamic_image_processing" => Ok(feagi_io::MotorUnit::DynamicImageProcessing),
         _ => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
             format!("Unsupported motor unit: {}", unit),
         )),
