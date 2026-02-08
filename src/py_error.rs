@@ -36,6 +36,7 @@ impl From<PyFeagiError> for PyErr {
             FeagiDataError::NeuronError(msg) => PyValueError::new_err(msg),
             FeagiDataError::NotImplemented => PyRuntimeError::new_err("Function not yet implemented! Please reach out on Github!"),
             FeagiDataError::ConstError(msg) => PyRuntimeError::new_err(msg),
+            FeagiDataError::ResourceLockedWhileRunning(msg) => PyRuntimeError::new_err(msg),
         }
     }
 }

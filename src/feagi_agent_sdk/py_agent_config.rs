@@ -5,6 +5,44 @@
 use pyo3::prelude::*;
 use super::py_agent_type::PyAgentType;
 
+fn parse_sensory_unit(unit: &str) -> PyResult<feagi_io::SensoryUnit> {
+    match unit {
+        "infrared" => Ok(feagi_io::SensoryUnit::Infrared),
+        "proximity" => Ok(feagi_io::SensoryUnit::Proximity),
+        "shock" => Ok(feagi_io::SensoryUnit::Shock),
+        "battery" => Ok(feagi_io::SensoryUnit::Battery),
+        "servo" => Ok(feagi_io::SensoryUnit::Servo),
+        "analog_gpio" => Ok(feagi_io::SensoryUnit::AnalogGpio),
+        "digital_gpio" => Ok(feagi_io::SensoryUnit::DigitalGpio),
+        "misc_data" => Ok(feagi_io::SensoryUnit::MiscData),
+        "text_english_input" => Ok(feagi_io::SensoryUnit::TextEnglishInput),
+        "count_input" => Ok(feagi_io::SensoryUnit::CountInput),
+        "vision" => Ok(feagi_io::SensoryUnit::Vision),
+        "segmented_vision" => Ok(feagi_io::SensoryUnit::SegmentedVision),
+        "accelerometer" => Ok(feagi_io::SensoryUnit::Accelerometer),
+        "gyroscope" => Ok(feagi_io::SensoryUnit::Gyroscope),
+        _ => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+            format!("Unsupported sensory unit: {}", unit),
+        )),
+    }
+}
+
+fn parse_motor_unit(unit: &str) -> PyResult<feagi_io::MotorUnit> {
+    match unit {
+        "rotary_motor" => Ok(feagi_io::MotorUnit::RotaryMotor),
+        "positional_servo" => Ok(feagi_io::MotorUnit::PositionalServo),
+        "gaze" => Ok(feagi_io::MotorUnit::Gaze),
+        "misc_data" => Ok(feagi_io::MotorUnit::MiscData),
+        "text_english_output" => Ok(feagi_io::MotorUnit::TextEnglishOutput),
+        "count_output" => Ok(feagi_io::MotorUnit::CountOutput),
+        "object_segmentation" => Ok(feagi_io::MotorUnit::ObjectSegmentation),
+        "simple_vision_output" => Ok(feagi_io::MotorUnit::SimpleVisionOutput),
+        _ => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+            format!("Unsupported motor unit: {}", unit),
+        )),
+    }
+}
+
 #[pyclass(name = "PyAgentConfig")]
 #[derive(Clone)]
 pub struct PyAgentConfig {
@@ -94,6 +132,28 @@ impl PyAgentConfig {
         );
         Ok(())
     }
+
+    /// Add vision capability using semantic unit + group (preferred FEAGI 2.0 contract).
+    #[pyo3(signature = (modality, width, height, channels, unit, group))]
+    fn with_vision_unit(
+        &mut self,
+        modality: String,
+        width: usize,
+        height: usize,
+        channels: usize,
+        unit: String,
+        group: u8,
+    ) -> PyResult<()> {
+        let unit_enum = parse_sensory_unit(unit.as_str())?;
+        self.inner = self.inner.clone().with_vision_unit(
+            modality,
+            (width, height),
+            channels,
+            unit_enum,
+            group,
+        );
+        Ok(())
+    }
     
     /// Add motor capability
     #[pyo3(signature = (modality, output_count, cortical_areas))]
@@ -104,6 +164,39 @@ impl PyAgentConfig {
         cortical_areas: Vec<String>,
     ) -> PyResult<()> {
         self.inner = self.inner.clone().with_motor_capability(modality, output_count, cortical_areas);
+        Ok(())
+    }
+
+    /// Add motor capability using semantic unit + group (preferred FEAGI 2.0 contract).
+    #[pyo3(signature = (modality, output_count, unit, group))]
+    fn with_motor_unit(
+        &mut self,
+        modality: String,
+        output_count: usize,
+        unit: String,
+        group: u8,
+    ) -> PyResult<()> {
+        let unit_enum = parse_motor_unit(unit.as_str())?;
+        self.inner = self.inner.clone().with_motor_unit(modality, output_count, unit_enum, group);
+        Ok(())
+    }
+
+    /// Add multiple motor units using semantic unit + group pairs.
+    ///
+    /// Expects source_units as a list of (unit, group) tuples.
+    #[pyo3(signature = (modality, output_count, source_units))]
+    fn with_motor_units(
+        &mut self,
+        modality: String,
+        output_count: usize,
+        source_units: Vec<(String, u8)>,
+    ) -> PyResult<()> {
+        let mut specs = Vec::with_capacity(source_units.len());
+        for (unit, group) in source_units {
+            let unit_enum = parse_motor_unit(unit.as_str())?;
+            specs.push(feagi_io::MotorUnitSpec { unit: unit_enum, group });
+        }
+        self.inner = self.inner.clone().with_motor_units(modality, output_count, specs);
         Ok(())
     }
     

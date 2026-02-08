@@ -103,8 +103,9 @@ impl PyAgentClient {
                     area_data.insert("z".to_string(), json!(z_vec));
                     area_data.insert("p".to_string(), json!(p_vec));
                     
-                    // Use cortical ID as key (e.g., "omot\x04\x00\x00\x00")
-                    let cortical_id_str = String::from_utf8_lossy(cortical_id.as_bytes()).to_string();
+                    // Use base64-encoded cortical ID so Python decode_motor_xyzp can parse
+                    // group_id (byte 7) and emit "group:channel" keys for multi-group motors.
+                    let cortical_id_str = cortical_id.as_base_64();
                     result.insert(cortical_id_str, serde_json::Value::Object(area_data));
                 }
                 

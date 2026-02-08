@@ -1,21 +1,22 @@
 
 use std::sync::MutexGuard;
 use std::time::Instant;
-use pyo3::{pyclass, pymethods, PyResult};
+use pyo3::pymethods;
 use pyo3::types::{PyByteArray, PyBytes};
 use pyo3::prelude::*;
+use pyo3::PyResult;
 use feagi_data_structures::{motor_cortical_units, sensor_cortical_units, FeagiDataError};
 use feagi_data_structures::genomic::cortical_area::descriptors::*;
 use feagi_data_structures::genomic::cortical_area::io_cortical_area_configuration_flag::FrameChangeHandling;
 use feagi_data_structures::genomic::cortical_area::io_cortical_area_configuration_flag::PercentageNeuronPositioning;
 use feagi_sensorimotor::caching::{MotorDeviceCache, SensorDeviceCache};
-use feagi_agent::sdk::ConnectorAgent;
+use feagi_agent::sdk::{AgentDescriptor, ConnectorAgent};
 use feagi_sensorimotor::data_pipeline::PipelineStagePropertyIndex;
 use feagi_sensorimotor::data_types::*;
 use feagi_sensorimotor::data_types::descriptors::*;
 use feagi_sensorimotor::wrapped_io_data::WrappedIOData;
 use crate::feagi_connector_core::data_types::descriptors::PyMiscDataDimensions;
-use crate::{create_pyclass_no_clone, __base_py_class_shared};
+use crate::create_pyclass_no_clone_unsendable;
 use crate::py_error::PyFeagiError;
 use crate::feagi_connector_core::data_types::descriptors::*;
 use crate::feagi_connector_core::data_pipeline::pipeline_stage_properties::PyPipelineStageProperties;
@@ -881,7 +882,7 @@ macro_rules! motor_unit_functions {
 
 }
 
-create_pyclass_no_clone!(PyConnectorAgent, ConnectorAgent, "ConnectorAgent");
+create_pyclass_no_clone_unsendable!(PyConnectorAgent, ConnectorAgent, "ConnectorAgent");
 
 impl PyConnectorAgent {
     fn get_sensor_cache(&self) -> MutexGuard<'_, SensorDeviceCache> {
@@ -924,10 +925,21 @@ pub fn init_rust_logging() {
 #[pymethods]
 impl PyConnectorAgent {
     #[new]
-    pub fn new() -> Self {
-        PyConnectorAgent {
-            inner: ConnectorAgent::new(),
-        }
+    #[pyo3(signature = (agent_descriptor_b64=None))]
+    pub fn new(agent_descriptor_b64: Option<String>) -> PyResult<Self> {
+        let agent_descriptor_b64 = match agent_descriptor_b64 {
+            Some(value) => value,
+            None => std::env::var("FEAGI_AGENT_DESCRIPTOR_B64").map_err(|_| {
+                PyFeagiError::from(FeagiDataError::BadParameters(
+                    "Missing agent descriptor base64. Provide ConnectorAgent(agent_descriptor_b64) or set FEAGI_AGENT_DESCRIPTOR_B64.".to_string(),
+                ))
+            })?,
+        };
+        let agent_descriptor =
+            AgentDescriptor::try_from_base64(&agent_descriptor_b64).map_err(PyFeagiError::from)?;
+        Ok(PyConnectorAgent {
+            inner: ConnectorAgent::new_empty(agent_descriptor),
+        })
     }
 
     /// Export all registered device capabilities as JSON string in new format
@@ -938,7 +950,7 @@ impl PyConnectorAgent {
     /// # Returns
     /// JSON string in format: {"capabilities": {"input": {...}, "output": {...}}}
     pub fn export_capabilities_json(&self, _py: Python<'_>) -> PyResult<String> {
-        let json_value = self.inner.export_device_registrations_as_config_json()
+        let json_value = self.inner.get_device_registration_json()
             .map_err(PyFeagiError::from)?;
         serde_json::to_string_pretty(&json_value)
             .map_err(|e| PyFeagiError::from(FeagiDataError::SerializationError(e.to_string())))
@@ -959,7 +971,7 @@ impl PyConnectorAgent {
         py.detach(|| {
             let json_value: serde_json::Value = serde_json::from_str(json_str)
                 .map_err(|e| PyFeagiError::from(feagi_data_structures::FeagiDataError::DeserializationError(e.to_string())))?;
-            self.inner.import_device_registrations_as_config_json(json_value)
+            self.inner.set_device_registrations_from_json(json_value)
                 .map_err(PyFeagiError::from)?;
             Ok(())
         })
