@@ -150,10 +150,7 @@ fn feagi_rust_py_libs(py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     //endregion
     
     //region FEAGI Agent SDK
-    
-    // Register the agent SDK module
     feagi_agent_sdk::register_module(py, m)?;
-    
     //endregion
     
     //region FEAGI Evo (Genome Validation) - Temporarily disabled pending beta.56 migration

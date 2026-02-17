@@ -2,62 +2,96 @@
  * PyO3 wrapper for AgentConfig
  */
 
+use super::py_agent_type::{AgentTypeCompat, PyAgentType};
+use base64::Engine;
 use pyo3::prelude::*;
-use super::py_agent_type::PyAgentType;
+use serde_json::Value;
 
-fn parse_sensory_unit(unit: &str) -> PyResult<feagi_io::SensoryUnit> {
-    match unit {
-        "infrared" => Ok(feagi_io::SensoryUnit::Infrared),
-        "proximity" => Ok(feagi_io::SensoryUnit::Proximity),
-        "shock" => Ok(feagi_io::SensoryUnit::Shock),
-        "battery" => Ok(feagi_io::SensoryUnit::Battery),
-        "servo" => Ok(feagi_io::SensoryUnit::Servo),
-        "analog_gpio" => Ok(feagi_io::SensoryUnit::AnalogGpio),
-        "digital_gpio" => Ok(feagi_io::SensoryUnit::DigitalGpio),
-        "misc_data" => Ok(feagi_io::SensoryUnit::MiscData),
-        "text_english_input" => Ok(feagi_io::SensoryUnit::TextEnglishInput),
-        "count_input" => Ok(feagi_io::SensoryUnit::CountInput),
-        "vision" => Ok(feagi_io::SensoryUnit::Vision),
-        "segmented_vision" => Ok(feagi_io::SensoryUnit::SegmentedVision),
-        "accelerometer" => Ok(feagi_io::SensoryUnit::Accelerometer),
-        "gyroscope" => Ok(feagi_io::SensoryUnit::Gyroscope),
-        _ => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-            format!("Unsupported sensory unit: {}", unit),
-        )),
-    }
+#[derive(Clone, Debug)]
+pub struct AgentDescriptorCompat {
+    pub manufacturer: String,
+    pub agent_name: String,
+    pub agent_version: u32,
 }
 
-fn parse_motor_unit(unit: &str) -> PyResult<feagi_io::MotorUnit> {
-    match unit {
-        "rotary_motor" => Ok(feagi_io::MotorUnit::RotaryMotor),
-        "positional_servo" => Ok(feagi_io::MotorUnit::PositionalServo),
-        "gaze" => Ok(feagi_io::MotorUnit::Gaze),
-        "misc_data" => Ok(feagi_io::MotorUnit::MiscData),
-        "text_english_output" => Ok(feagi_io::MotorUnit::TextEnglishOutput),
-        "count_output" => Ok(feagi_io::MotorUnit::CountOutput),
-        "object_segmentation" => Ok(feagi_io::MotorUnit::ObjectSegmentation),
-        "simple_vision_output" => Ok(feagi_io::MotorUnit::SimpleVisionOutput),
-        _ => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-            format!("Unsupported motor unit: {}", unit),
-        )),
+#[derive(Clone, Debug)]
+pub struct VisionCapabilityCompat {
+    pub modality: String,
+    pub width: usize,
+    pub height: usize,
+    pub channels: usize,
+    pub cortical_area: Option<String>,
+    pub unit: Option<String>,
+    pub group: Option<u8>,
+}
+
+#[derive(Clone, Debug)]
+pub struct MotorCapabilityCompat {
+    pub value: Value,
+}
+
+#[derive(Clone, Debug)]
+pub struct AgentConfigCompat {
+    pub agent_id: String,
+    pub agent_type: AgentTypeCompat,
+    pub registration_endpoint: String,
+    pub sensory_endpoint: String,
+    pub motor_endpoint: String,
+    pub visualization_endpoint: String,
+    pub control_endpoint: String,
+    pub heartbeat_interval_secs: Option<f64>,
+    pub connection_timeout_ms: Option<u64>,
+    pub registration_retries: Option<u32>,
+    pub sensory_send_hwm: i32,
+    pub sensory_linger_ms: i32,
+    pub sensory_immediate: bool,
+    pub descriptor: Option<AgentDescriptorCompat>,
+    pub auth_token: Option<[u8; 32]>,
+    pub vision_capability: Option<VisionCapabilityCompat>,
+    pub motor_capability: Option<MotorCapabilityCompat>,
+    pub custom_capabilities: Vec<(String, Value)>,
+}
+
+impl AgentConfigCompat {
+    fn new(agent_id: String, agent_type: AgentTypeCompat) -> Self {
+        Self {
+            agent_id,
+            agent_type,
+            registration_endpoint: String::new(),
+            sensory_endpoint: String::new(),
+            motor_endpoint: String::new(),
+            visualization_endpoint: String::new(),
+            control_endpoint: String::new(),
+            heartbeat_interval_secs: None,
+            connection_timeout_ms: None,
+            registration_retries: None,
+            sensory_send_hwm: 1,
+            sensory_linger_ms: 0,
+            sensory_immediate: true,
+            descriptor: None,
+            auth_token: None,
+            vision_capability: None,
+            motor_capability: None,
+            custom_capabilities: Vec::new(),
+        }
     }
 }
 
 #[pyclass(name = "PyAgentConfig")]
 #[derive(Clone)]
 pub struct PyAgentConfig {
-    inner: feagi_agent::AgentConfig,
+    inner: AgentConfigCompat,
 }
 
 #[pymethods]
 impl PyAgentConfig {
     #[new]
     fn new(agent_id: String, agent_type: PyAgentType) -> Self {
-        let inner = feagi_agent::AgentConfig::new(agent_id, agent_type.inner());
-        PyAgentConfig { inner }
+        PyAgentConfig {
+            inner: AgentConfigCompat::new(agent_id, agent_type.inner()),
+        }
     }
-    
-    /// Set FEAGI host and ports (required for all endpoints)
+
     fn with_feagi_endpoints(
         &mut self,
         host: String,
@@ -67,54 +101,56 @@ impl PyAgentConfig {
         visualization_port: u16,
         control_port: u16,
     ) -> PyResult<()> {
-        self.inner = self.inner.clone()
-            .with_feagi_endpoints(host, registration_port, sensory_port, motor_port, visualization_port, control_port);
+        self.inner.registration_endpoint = format!("tcp://{}:{}", host, registration_port);
+        self.inner.sensory_endpoint = format!("tcp://{}:{}", host, sensory_port);
+        self.inner.motor_endpoint = format!("tcp://{}:{}", host, motor_port);
+        self.inner.visualization_endpoint = format!("tcp://{}:{}", host, visualization_port);
+        self.inner.control_endpoint = format!("tcp://{}:{}", host, control_port);
         Ok(())
     }
-    
-    /// Set registration endpoint
+
     fn with_registration_endpoint(&mut self, endpoint: String) -> PyResult<()> {
-        self.inner = self.inner.clone().with_registration_endpoint(endpoint);
+        self.inner.registration_endpoint = endpoint;
         Ok(())
     }
-    
-    /// Set sensory data endpoint
+
     fn with_sensory_endpoint(&mut self, endpoint: String) -> PyResult<()> {
-        self.inner = self.inner.clone().with_sensory_endpoint(endpoint);
+        self.inner.sensory_endpoint = endpoint;
         Ok(())
     }
-    
-    /// Set motor data endpoint
+
     fn with_motor_endpoint(&mut self, endpoint: String) -> PyResult<()> {
-        self.inner = self.inner.clone().with_motor_endpoint(endpoint);
+        self.inner.motor_endpoint = endpoint;
         Ok(())
     }
-    
-    /// Set heartbeat interval in seconds (0 to disable)
+
     fn with_heartbeat_interval(&mut self, interval: f64) -> PyResult<()> {
-        self.inner = self.inner.clone().with_heartbeat_interval(interval);
+        self.inner.heartbeat_interval_secs = Some(interval);
         Ok(())
     }
-    
-    /// Set connection timeout in milliseconds
+
     fn with_connection_timeout_ms(&mut self, timeout: u64) -> PyResult<()> {
-        self.inner = self.inner.clone().with_connection_timeout_ms(timeout);
+        self.inner.connection_timeout_ms = Some(timeout);
         Ok(())
     }
-    
-    /// Set number of registration retries
+
     fn with_registration_retries(&mut self, retries: u32) -> PyResult<()> {
-        self.inner = self.inner.clone().with_registration_retries(retries);
+        self.inner.registration_retries = Some(retries);
         Ok(())
     }
-    
-    /// Set sensory socket configuration (high water mark, linger, immediate)
-    fn with_sensory_socket_config(&mut self, hwm: i32, linger_ms: i32, immediate: bool) -> PyResult<()> {
-        self.inner = self.inner.clone().with_sensory_socket_config(hwm, linger_ms, immediate);
+
+    fn with_sensory_socket_config(
+        &mut self,
+        hwm: i32,
+        linger_ms: i32,
+        immediate: bool,
+    ) -> PyResult<()> {
+        self.inner.sensory_send_hwm = hwm;
+        self.inner.sensory_linger_ms = linger_ms;
+        self.inner.sensory_immediate = immediate;
         Ok(())
     }
-    
-    /// Add vision capability
+
     #[pyo3(signature = (modality, width, height, channels, cortical_area))]
     fn with_vision_capability(
         &mut self,
@@ -124,16 +160,18 @@ impl PyAgentConfig {
         channels: usize,
         cortical_area: String,
     ) -> PyResult<()> {
-        self.inner = self.inner.clone().with_vision_capability(
+        self.inner.vision_capability = Some(VisionCapabilityCompat {
             modality,
-            (width, height),
+            width,
+            height,
             channels,
-            cortical_area,
-        );
+            cortical_area: Some(cortical_area),
+            unit: None,
+            group: None,
+        });
         Ok(())
     }
 
-    /// Add vision capability using semantic unit + group (preferred FEAGI 2.0 contract).
     #[pyo3(signature = (modality, width, height, channels, unit, group))]
     fn with_vision_unit(
         &mut self,
@@ -144,18 +182,18 @@ impl PyAgentConfig {
         unit: String,
         group: u8,
     ) -> PyResult<()> {
-        let unit_enum = parse_sensory_unit(unit.as_str())?;
-        self.inner = self.inner.clone().with_vision_unit(
+        self.inner.vision_capability = Some(VisionCapabilityCompat {
             modality,
-            (width, height),
+            width,
+            height,
             channels,
-            unit_enum,
-            group,
-        );
+            cortical_area: None,
+            unit: Some(unit),
+            group: Some(group),
+        });
         Ok(())
     }
-    
-    /// Add motor capability
+
     #[pyo3(signature = (modality, output_count, cortical_areas))]
     fn with_motor_capability(
         &mut self,
@@ -163,11 +201,16 @@ impl PyAgentConfig {
         output_count: usize,
         cortical_areas: Vec<String>,
     ) -> PyResult<()> {
-        self.inner = self.inner.clone().with_motor_capability(modality, output_count, cortical_areas);
+        self.inner.motor_capability = Some(MotorCapabilityCompat {
+            value: serde_json::json!({
+                "modality": modality,
+                "output_count": output_count,
+                "source_cortical_areas": cortical_areas,
+            }),
+        });
         Ok(())
     }
 
-    /// Add motor capability using semantic unit + group (preferred FEAGI 2.0 contract).
     #[pyo3(signature = (modality, output_count, unit, group))]
     fn with_motor_unit(
         &mut self,
@@ -176,14 +219,17 @@ impl PyAgentConfig {
         unit: String,
         group: u8,
     ) -> PyResult<()> {
-        let unit_enum = parse_motor_unit(unit.as_str())?;
-        self.inner = self.inner.clone().with_motor_unit(modality, output_count, unit_enum, group);
+        self.inner.motor_capability = Some(MotorCapabilityCompat {
+            value: serde_json::json!({
+                "modality": modality,
+                "output_count": output_count,
+                "unit": unit,
+                "group": group,
+            }),
+        });
         Ok(())
     }
 
-    /// Add multiple motor units using semantic unit + group pairs.
-    ///
-    /// Expects source_units as a list of (unit, group) tuples.
     #[pyo3(signature = (modality, output_count, source_units))]
     fn with_motor_units(
         &mut self,
@@ -191,44 +237,148 @@ impl PyAgentConfig {
         output_count: usize,
         source_units: Vec<(String, u8)>,
     ) -> PyResult<()> {
-        let mut specs = Vec::with_capacity(source_units.len());
-        for (unit, group) in source_units {
-            let unit_enum = parse_motor_unit(unit.as_str())?;
-            specs.push(feagi_io::MotorUnitSpec { unit: unit_enum, group });
-        }
-        self.inner = self.inner.clone().with_motor_units(modality, output_count, specs);
+        self.inner.motor_capability = Some(MotorCapabilityCompat {
+            value: serde_json::json!({
+                "modality": modality,
+                "output_count": output_count,
+                "source_units": source_units,
+            }),
+        });
         Ok(())
     }
-    
-    /// Add custom capability (takes JSON string)
+
     fn with_custom_capability(&mut self, key: String, value_json: String) -> PyResult<()> {
-        let value: serde_json::Value = serde_json::from_str(&value_json)
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                format!("Invalid JSON: {}", e)
-            ))?;
-        self.inner = self.inner.clone().with_custom_capability(key, value);
+        let value: Value = serde_json::from_str(&value_json).map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Invalid JSON: {}", e))
+        })?;
+        self.inner.custom_capabilities.push((key, value));
         Ok(())
     }
-    
-    /// Validate configuration
-    fn validate(&self) -> PyResult<()> {
-        self.inner.validate()
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))
+
+    fn with_agent_descriptor(
+        &mut self,
+        manufacturer: String,
+        agent_name: String,
+        agent_version: u32,
+    ) -> PyResult<()> {
+        self.inner.descriptor = Some(AgentDescriptorCompat {
+            manufacturer,
+            agent_name,
+            agent_version,
+        });
+        Ok(())
     }
-    
+
+    fn with_auth_token_base64(&mut self, auth_token_b64: String) -> PyResult<()> {
+        let decoded = base64::engine::general_purpose::STANDARD
+            .decode(auth_token_b64.as_bytes())
+            .map_err(|e| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                    "Invalid auth token base64: {}",
+                    e
+                ))
+            })?;
+        if decoded.len() != 32 {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                "Auth token must decode to exactly 32 bytes, got {}",
+                decoded.len()
+            )));
+        }
+        let mut token = [0_u8; 32];
+        token.copy_from_slice(&decoded);
+        self.inner.auth_token = Some(token);
+        Ok(())
+    }
+
+    fn validate(&self) -> PyResult<()> {
+        self.validate_internal()
+            .map_err(|err| PyErr::new::<pyo3::exceptions::PyValueError, _>(err))
+    }
+
     fn __repr__(&self) -> String {
         format!("PyAgentConfig(agent_id={})", self.inner.agent_id)
     }
 }
 
 impl PyAgentConfig {
-    pub fn inner(&self) -> &feagi_agent::AgentConfig {
+    pub fn inner(&self) -> &AgentConfigCompat {
         &self.inner
     }
-    
-    #[allow(dead_code)]
-    pub fn into_inner(self) -> feagi_agent::AgentConfig {
-        self.inner
+
+    pub fn validate_internal(&self) -> Result<(), String> {
+        if self.inner.agent_id.trim().is_empty() {
+            return Err("agent_id cannot be empty".to_string());
+        }
+        if self.inner.registration_endpoint.trim().is_empty() {
+            return Err("registration_endpoint must be set".to_string());
+        }
+        if matches!(
+            self.inner.agent_type,
+            AgentTypeCompat::Sensory | AgentTypeCompat::Both
+        ) && self.inner.sensory_endpoint.trim().is_empty()
+        {
+            return Err("sensory_endpoint must be set for sensory/both agents".to_string());
+        }
+        if matches!(
+            self.inner.agent_type,
+            AgentTypeCompat::Motor | AgentTypeCompat::Both
+        ) && self.inner.motor_endpoint.trim().is_empty()
+        {
+            return Err("motor_endpoint must be set for motor/both agents".to_string());
+        }
+        if self.inner.connection_timeout_ms.is_none() {
+            return Err("connection_timeout_ms must be explicitly set".to_string());
+        }
+        if self.inner.registration_retries.is_none() {
+            return Err("registration_retries must be explicitly set".to_string());
+        }
+        if self.inner.heartbeat_interval_secs.is_none() {
+            return Err("heartbeat_interval_secs must be explicitly set".to_string());
+        }
+        if self.inner.descriptor.is_none() {
+            return Err("agent descriptor must be explicitly set".to_string());
+        }
+        if self.inner.auth_token.is_none() {
+            return Err("auth token must be explicitly set".to_string());
+        }
+        if let Some(descriptor) = &self.inner.descriptor {
+            if descriptor.manufacturer.trim().is_empty() {
+                return Err("descriptor.manufacturer cannot be empty".to_string());
+            }
+            if descriptor.agent_name.trim().is_empty() {
+                return Err("descriptor.agent_name cannot be empty".to_string());
+            }
+            if descriptor.agent_version == 0 {
+                return Err("descriptor.agent_version must be > 0".to_string());
+            }
+        }
+        if matches!(
+            self.inner.agent_type,
+            AgentTypeCompat::Sensory | AgentTypeCompat::Both
+        ) && self.inner.vision_capability.is_none()
+        {
+            return Err(
+                "vision capability must be set for sensory/both agents when using tuple API"
+                    .to_string(),
+            );
+        }
+        if let Some(vision) = &self.inner.vision_capability {
+            if vision.modality.trim().is_empty() {
+                return Err("vision.modality cannot be empty".to_string());
+            }
+            if vision.cortical_area.is_none() && (vision.unit.is_none() || vision.group.is_none()) {
+                return Err(
+                    "vision capability must provide either target_cortical_area or unit+group"
+                        .to_string(),
+                );
+            }
+        }
+        if let Some(motor) = &self.inner.motor_capability {
+            if !motor.value.is_object() {
+                return Err("motor capability must be a JSON object".to_string());
+            }
+        }
+        Ok(())
     }
 }
 
