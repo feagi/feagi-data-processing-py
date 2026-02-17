@@ -440,15 +440,30 @@ impl AgentClientCompat {
                 }
                 std::thread::yield_now();
             }
-            control.request_disconnect().map_err(|e| e.to_string())?;
+            if let Err(err) = control.request_disconnect() {
+                let msg = err.to_string();
+                if !msg.contains("Cannot disconnect: client is not in Active state") {
+                    return Err(msg);
+                }
+            }
         }
 
         if let Some(sensory) = self.sensory_client.as_mut() {
-            sensory.request_disconnect().map_err(|e| e.to_string())?;
+            if let Err(err) = sensory.request_disconnect() {
+                let msg = err.to_string();
+                if !msg.contains("not in Active state") {
+                    return Err(msg);
+                }
+            }
             let _ = sensory.poll();
         }
         if let Some(motor) = self.motor_client.as_mut() {
-            motor.request_disconnect().map_err(|e| e.to_string())?;
+            if let Err(err) = motor.request_disconnect() {
+                let msg = err.to_string();
+                if !msg.contains("not in Active state") {
+                    return Err(msg);
+                }
+            }
             let _ = motor.poll();
         }
 
@@ -555,6 +570,62 @@ impl PyAgentClient {
     fn __repr__(&self) -> String {
         let registered = self.is_registered().unwrap_or(false);
         format!("PyAgentClient(registered={})", registered)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::AgentClientCompat;
+    use crate::feagi_agent_sdk::py_agent_config::{
+        AgentConfigCompat, AgentDescriptorCompat, VisionCapabilityCompat,
+    };
+    use crate::feagi_agent_sdk::py_agent_type::AgentTypeCompat;
+
+    fn configured_client() -> AgentClientCompat {
+        let mut cfg = AgentConfigCompat::new("agent-1".to_string(), AgentTypeCompat::Sensory);
+        cfg.registration_endpoint = "tcp://127.0.0.1:30001".to_string();
+        cfg.sensory_endpoint = "tcp://127.0.0.1:5558".to_string();
+        cfg.connection_timeout_ms = Some(1000);
+        cfg.registration_retries = Some(3);
+        cfg.heartbeat_interval_secs = Some(1.0);
+        cfg.descriptor = Some(AgentDescriptorCompat {
+            manufacturer: "Neuraville".to_string(),
+            agent_name: "agent-1".to_string(),
+            agent_version: 1,
+        });
+        cfg.auth_token = Some([9_u8; 32]);
+        cfg.vision_capability = Some(VisionCapabilityCompat {
+            modality: "vision".to_string(),
+            width: 2,
+            height: 2,
+            channels: 1,
+            cortical_area: Some("iv00".to_string()),
+            unit: None,
+            group: None,
+        });
+        AgentClientCompat::new(cfg)
+    }
+
+    #[test]
+    fn encode_sensory_pairs_to_container_produces_single_structure() {
+        let client = configured_client();
+        let container = client
+            .encode_sensory_pairs_to_container(&[(0, 0.1), (1, 0.2), (2, 0.3)])
+            .expect("encoding should succeed");
+
+        let count = container
+            .try_get_number_contained_structures()
+            .expect("container read should succeed");
+        assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn encode_sensory_pairs_to_container_rejects_out_of_bounds_neuron() {
+        let client = configured_client();
+        let err = client
+            .encode_sensory_pairs_to_container(&[(4, 0.5)])
+            .expect_err("expected bounds check failure");
+        assert!(err.contains("out of bounds"));
     }
 }
 

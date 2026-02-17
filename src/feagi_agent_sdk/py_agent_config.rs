@@ -53,7 +53,7 @@ pub struct AgentConfigCompat {
 }
 
 impl AgentConfigCompat {
-    fn new(agent_id: String, agent_type: AgentTypeCompat) -> Self {
+    pub(crate) fn new(agent_id: String, agent_type: AgentTypeCompat) -> Self {
         Self {
             agent_id,
             agent_type,
@@ -297,6 +297,74 @@ impl PyAgentConfig {
 
     fn __repr__(&self) -> String {
         format!("PyAgentConfig(agent_id={})", self.inner.agent_id)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{AgentConfigCompat, AgentDescriptorCompat, AgentTypeCompat, VisionCapabilityCompat};
+
+    fn valid_config() -> AgentConfigCompat {
+        let mut cfg = AgentConfigCompat::new("agent-1".to_string(), AgentTypeCompat::Both);
+        cfg.registration_endpoint = "tcp://127.0.0.1:30001".to_string();
+        cfg.sensory_endpoint = "tcp://127.0.0.1:5558".to_string();
+        cfg.motor_endpoint = "tcp://127.0.0.1:5564".to_string();
+        cfg.connection_timeout_ms = Some(1000);
+        cfg.registration_retries = Some(3);
+        cfg.heartbeat_interval_secs = Some(1.0);
+        cfg.descriptor = Some(AgentDescriptorCompat {
+            manufacturer: "Neuraville".to_string(),
+            agent_name: "agent-1".to_string(),
+            agent_version: 1,
+        });
+        cfg.auth_token = Some([7_u8; 32]);
+        cfg.vision_capability = Some(VisionCapabilityCompat {
+            modality: "vision".to_string(),
+            width: 4,
+            height: 4,
+            channels: 1,
+            cortical_area: Some("iv00".to_string()),
+            unit: None,
+            group: None,
+        });
+        cfg
+    }
+
+    #[test]
+    fn validate_internal_accepts_complete_config() {
+        let cfg = valid_config();
+        let py_cfg = crate::feagi_agent_sdk::py_agent_config::PyAgentConfig { inner: cfg };
+        assert!(py_cfg.validate_internal().is_ok());
+    }
+
+    #[test]
+    fn validate_internal_rejects_missing_auth_token() {
+        let mut cfg = valid_config();
+        cfg.auth_token = None;
+        let py_cfg = crate::feagi_agent_sdk::py_agent_config::PyAgentConfig { inner: cfg };
+        assert!(py_cfg
+            .validate_internal()
+            .expect_err("expected validation failure")
+            .contains("auth token"));
+    }
+
+    #[test]
+    fn validate_internal_rejects_incomplete_vision_targeting() {
+        let mut cfg = valid_config();
+        cfg.vision_capability = Some(VisionCapabilityCompat {
+            modality: "vision".to_string(),
+            width: 4,
+            height: 4,
+            channels: 1,
+            cortical_area: None,
+            unit: Some("vision".to_string()),
+            group: None,
+        });
+        let py_cfg = crate::feagi_agent_sdk::py_agent_config::PyAgentConfig { inner: cfg };
+        assert!(py_cfg
+            .validate_internal()
+            .expect_err("expected validation failure")
+            .contains("unit+group"));
     }
 }
 
