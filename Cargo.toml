@@ -16,18 +16,18 @@ rust-version = "1.85"
 name = "feagi_rust_py_libs"
 crate-type = ["cdylib"]
 
-# Feagi crates from crates.io. Minimum versions shown; Cargo resolves to latest
-# compatible. Run `cargo update` to refresh Cargo.lock to latest published.
+# FEAGI crates sourced from local feagi-core workspace.
 [dependencies]
-feagi-agent = { version = ">=0.0.1-beta.8" }
-feagi-io = { version = ">=0.0.1-beta.8" }
-feagi-sensorimotor = { version = ">=0.0.1-beta.8" }
-feagi-serialization = { version = ">=0.0.1-beta.8" }
-feagi_data_structures = { package = "feagi-structures", version = ">=0.0.1-beta.8" }
+feagi-agent = { path = "../feagi-core/crates/feagi-agent" }
+feagi-io = { path = "../feagi-core/crates/feagi-io" }
+feagi-sensorimotor = { path = "../feagi-core/crates/feagi-sensorimotor" }
+feagi-serialization = { path = "../feagi-core/crates/feagi-serialization" }
+feagi_data_structures = { package = "feagi-structures", path = "../feagi-core/crates/feagi-structures" }
 numpy = "0.27.1"
 ndarray = "0.17"
 paste = "1.0.15"
 serde_json = "1.0.145"
+base64 = "0.22.1"
 tracing = "0.1.43"
 tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
 tokenizers = "0.15.2"
@@ -35,7 +35,7 @@ heck = "0.5"
 
 
 [build-dependencies]
-feagi_data_structures = { package = "feagi-structures", version = ">=0.0.1-beta.8" }
+feagi_data_structures = { package = "feagi-structures", path = "../feagi-core/crates/feagi-structures" }
 heck = "0.5"
 
 [dependencies.pyo3]
