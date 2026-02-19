@@ -85,10 +85,8 @@ jobs:
       - name: Update Cargo.toml version
         run: |
           VERSION="${{ needs.validate-version.outputs.version }}"
-          echo "📝 Updating Cargo.toml version to: $VERSION"
-          # Only replace the FIRST occurrence (package version, not dependencies)
+          echo "Updating Cargo.toml version to: $VERSION"
           sed -i "0,/^version = /s|^version = .*|version = \"$VERSION\"|" Cargo.toml
-          echo "Updated version:"
           grep "^version = " Cargo.toml | head -1
       
       - uses: actions/setup-python@v5
@@ -99,20 +97,14 @@ jobs:
         shell: bash
         run: |
           echo "Configuring vendored OpenSSL for aarch64 cross-compilation..."
-          
-          # Temporarily add vendored OpenSSL to Cargo.toml (CI only)
-          # maturin-action handles cross-compilation toolchain in Docker container
           echo "" >> Cargo.toml
           echo "# Temporary: vendored OpenSSL for CI cross-compilation" >> Cargo.toml
           echo "[dependencies.openssl-sys]" >> Cargo.toml
           echo 'version = "0.9"' >> Cargo.toml
           echo 'features = ["vendored"]' >> Cargo.toml
-          
-          echo "✅ Configured vendored OpenSSL for aarch64"
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         env:
-          # Set C++11 standard for aarch64 cross-compilation (required by zmq-sys)
           CXXFLAGS: ${{ matrix.platform.target == 'aarch64' && '-std=c++11' || '' }}
         with:
           target: ${{ matrix.platform.target }}
@@ -183,10 +175,8 @@ jobs:
       - name: Update Cargo.toml version
         run: |
           VERSION="${{ needs.validate-version.outputs.version }}"
-          echo "📝 Updating Cargo.toml version to: $VERSION"
-          # Only replace the FIRST occurrence (package version, not dependencies)
+          echo "Updating Cargo.toml version to: $VERSION"
           sed -i "0,/^version = /s|^version = .*|version = \"$VERSION\"|" Cargo.toml
-          echo "Updated version:"
           grep "^version = " Cargo.toml | head -1
       
       - uses: actions/setup-python@v5
@@ -197,20 +187,14 @@ jobs:
         shell: bash
         run: |
           echo "Configuring vendored OpenSSL for aarch64 cross-compilation..."
-          
-          # Temporarily add vendored OpenSSL to Cargo.toml (CI only)
-          # maturin-action handles cross-compilation toolchain in Docker container
           echo "" >> Cargo.toml
           echo "# Temporary: vendored OpenSSL for CI cross-compilation" >> Cargo.toml
           echo "[dependencies.openssl-sys]" >> Cargo.toml
           echo 'version = "0.9"' >> Cargo.toml
           echo 'features = ["vendored"]' >> Cargo.toml
-          
-          echo "✅ Configured vendored OpenSSL for aarch64"
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         env:
-          # Set C++11 standard for aarch64 cross-compilation (required by zmq-sys)
           CXXFLAGS: ${{ matrix.platform.target == 'aarch64' && '-std=c++11' || '' }}
         with:
           target: ${{ matrix.platform.target }}
@@ -281,10 +265,8 @@ jobs:
         shell: bash
         run: |
           VERSION="${{ needs.validate-version.outputs.version }}"
-          echo "📝 Updating Cargo.toml version to: $VERSION"
-          # Only replace the FIRST occurrence (package version, not dependencies)
+          echo "Updating Cargo.toml version to: $VERSION"
           sed -i "0,/^version = /s|^version = .*|version = \"$VERSION\"|" Cargo.toml
-          echo "Updated version:"
           grep "^version = " Cargo.toml | head -1
       
       - uses: actions/setup-python@v5
@@ -334,11 +316,9 @@ jobs:
       - name: Update Cargo.toml version
         run: |
           VERSION="${{ needs.validate-version.outputs.version }}"
-          echo "📝 Updating Cargo.toml version to: $VERSION"
-          # Only replace the FIRST occurrence (package version, not dependencies)
+          echo "Updating Cargo.toml version to: $VERSION"
           sed -i.bak "0,/^version = /s|^version = .*|version = \"$VERSION\"|" Cargo.toml
           rm -f Cargo.toml.bak
-          echo "Updated version:"
           grep "^version = " Cargo.toml | head -1
       
       - uses: actions/setup-python@v5
@@ -380,10 +360,8 @@ jobs:
       - name: Update Cargo.toml version
         run: |
           VERSION="${{ needs.validate-version.outputs.version }}"
-          echo "📝 Updating Cargo.toml version to: $VERSION"
-          # Only replace the FIRST occurrence (package version, not dependencies)
+          echo "Updating Cargo.toml version to: $VERSION"
           sed -i "0,/^version = /s|^version = .*|version = \"$VERSION\"|" Cargo.toml
-          echo "Updated version:"
           grep "^version = " Cargo.toml | head -1
       
       - name: Build sdist
