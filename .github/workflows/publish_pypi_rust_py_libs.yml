@@ -107,6 +107,7 @@ jobs:
         env:
           CXXFLAGS: ${{ matrix.platform.target == 'aarch64' && '-std=c++11' || '' }}
         with:
+          rust-toolchain: "1.87"
           target: ${{ matrix.platform.target }}
           args: --release --out dist --find-interpreter
           sccache: true
@@ -197,6 +198,7 @@ jobs:
         env:
           CXXFLAGS: ${{ matrix.platform.target == 'aarch64' && '-std=c++11' || '' }}
         with:
+          rust-toolchain: "1.87"
           target: ${{ matrix.platform.target }}
           args: --release --out dist --find-interpreter
           sccache: true
@@ -286,6 +288,7 @@ jobs:
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
+          rust-toolchain: "1.87"
           target: ${{ matrix.platform.target }}
           args: --release --out dist --find-interpreter
           sccache: true
@@ -337,6 +340,7 @@ jobs:
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
+          rust-toolchain: "1.87"
           target: ${{ matrix.platform.target }}
           args: --release --out dist --find-interpreter
           sccache: true
@@ -367,6 +371,7 @@ jobs:
       - name: Build sdist
         uses: PyO3/maturin-action@v1
         with:
+          rust-toolchain: "1.87"
           command: sdist
           args: --out dist
       - name: Upload sdist
