@@ -156,7 +156,7 @@ fn feagi_rust_py_libs(py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     //region FEAGI Evo (Genome Validation)
     feagi_evo::validator::register_module(py, m)?;
     // Register genome in sys.modules so "from feagi_rust_py_libs.genome import ..." works
-    let genome_module = m.getattr("genome")?.cast_into::<Bound<'_, PyModule>>()?;
+    let genome_module = m.getattr("genome")?.cast_into::<PyModule>()?;
     register_submodule_in_sys_modules(py, "feagi_rust_py_libs.genome", &genome_module)?;
     //endregion
     
