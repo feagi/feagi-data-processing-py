@@ -9,7 +9,7 @@ pub mod feagi_data_serialization;
 pub use feagi_data_serialization as feagi_serialization;
 mod feagi_connector_core;
 mod feagi_agent_sdk;
-//mod feagi_evo;
+mod feagi_evo;
 
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -153,11 +153,8 @@ fn feagi_rust_py_libs(py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     feagi_agent_sdk::register_module(py, m)?;
     //endregion
     
-    //region FEAGI Evo (Genome Validation) - Temporarily disabled pending beta.56 migration
-    
-    // Register the genome validation module
-    // feagi_evo::validator::register_module(py, m)?;
-    
+    //region FEAGI Evo (Genome Validation)
+    feagi_evo::validator::register_module(py, m)?;
     //endregion
     
     Ok(())

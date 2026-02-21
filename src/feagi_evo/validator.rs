@@ -1,5 +1,8 @@
 use pyo3::prelude::*;
-use feagi_evo::{load_genome_from_json, save_genome_to_json, validate_genome, validator::auto_fix_genome};
+use feagi_evolutionary::{
+    load_genome_from_json, save_genome_to_json, validate_genome,
+    validator::auto_fix_genome,
+};
 
 /// Validation result returned to Python
 #[pyclass]
