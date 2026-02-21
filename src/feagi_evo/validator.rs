@@ -138,7 +138,7 @@ pub fn py_auto_fix_genome(genome_json: &str) -> PyResult<(String, usize)> {
 
 /// Register the genome validation module with Python
 pub fn register_module(py: Python, parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
-    let genome_module = PyModule::new_bound(py, "genome")?;
+    let genome_module = PyModule::new(py, "genome")?;
     
     genome_module.add_function(wrap_pyfunction!(py_validate_genome, &genome_module)?)?;
     genome_module.add_function(wrap_pyfunction!(py_auto_fix_genome, &genome_module)?)?;
