@@ -76,6 +76,7 @@ impl PyValidationResult {
 ///         print(f"ERROR: {error}")
 /// ```
 #[pyfunction]
+#[pyo3(name = "validate_genome")]
 pub fn py_validate_genome(genome_json: &str) -> PyResult<PyValidationResult> {
     // Load genome from JSON
     let genome = load_genome_from_json(genome_json).map_err(|e| {
@@ -116,6 +117,7 @@ pub fn py_validate_genome(genome_json: &str) -> PyResult<PyValidationResult> {
 /// print(f"Applied {fixes_applied} automatic fixes")
 /// ```
 #[pyfunction]
+#[pyo3(name = "auto_fix_genome")]
 pub fn py_auto_fix_genome(genome_json: &str) -> PyResult<(String, usize)> {
     // Load genome from JSON
     let mut genome = load_genome_from_json(genome_json).map_err(|e| {
@@ -139,13 +141,13 @@ pub fn py_auto_fix_genome(genome_json: &str) -> PyResult<(String, usize)> {
 /// Register the genome validation module with Python
 pub fn register_module(py: Python, parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
     let genome_module = PyModule::new(py, "genome")?;
-    
+
     genome_module.add_function(wrap_pyfunction!(py_validate_genome, &genome_module)?)?;
     genome_module.add_function(wrap_pyfunction!(py_auto_fix_genome, &genome_module)?)?;
     genome_module.add_class::<PyValidationResult>()?;
-    
+
     parent_module.add_submodule(&genome_module)?;
-    
+
     Ok(())
 }
 
