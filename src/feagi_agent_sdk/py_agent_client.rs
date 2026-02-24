@@ -5,7 +5,10 @@
 use super::py_agent_config::{AgentConfigCompat, PyAgentConfig};
 use super::py_agent_type::AgentTypeCompat;
 use feagi_agent::clients::{AgentRegistrationStatus, CommandControlAgent};
+use feagi_agent::command_and_control::agent_embodiment_configuration_message::AgentEmbodimentConfigurationMessage;
+use feagi_agent::command_and_control::FeagiMessage;
 use feagi_agent::{AgentCapabilities, AgentDescriptor, AuthToken};
+use feagi_sensorimotor::configuration::jsonable::JSONInputOutputDefinition;
 use feagi_data_structures::genomic::cortical_area::CorticalID;
 use feagi_data_structures::neuron_voxels::xyzp::{
     CorticalMappedXYZPNeuronVoxels, NeuronVoxelXYZPArrays,
@@ -30,6 +33,8 @@ struct AgentClientCompat {
     motor_client: Option<Box<dyn FeagiClientSubscriber>>,
     registered: bool,
     last_heartbeat_sent_at: Option<Instant>,
+    /// AgentID (base64) assigned at registration; used for device_registrations import
+    registration_agent_id_b64: Option<String>,
 }
 
 impl AgentClientCompat {
@@ -41,6 +46,7 @@ impl AgentClientCompat {
             motor_client: None,
             registered: false,
             last_heartbeat_sent_at: None,
+            registration_agent_id_b64: None,
         }
     }
 
@@ -180,10 +186,31 @@ impl AgentClientCompat {
             self.motor_client = Some(motor_client);
         }
 
-        let _ = session_id;
+        self.registration_agent_id_b64 = Some(session_id.to_base64());
         self.command_control = Some(control);
         self.registered = true;
         self.last_heartbeat_sent_at = Some(Instant::now());
+        Ok(())
+    }
+
+    /// Send device registrations (AgentConfiguration) to FEAGI over the command/control channel.
+    /// Must be called after connect() when the agent has motors registered.
+    fn send_device_configuration(&mut self, device_registrations_json: &str) -> Result<(), String> {
+        if !self.registered {
+            return Err("Agent is not registered; call connect() first".to_string());
+        }
+        let control = self
+            .command_control
+            .as_mut()
+            .ok_or_else(|| "Command control channel not available".to_string())?;
+        let device_def: JSONInputOutputDefinition = serde_json::from_str(device_registrations_json)
+            .map_err(|e| format!("Invalid device_registrations JSON: {}", e))?;
+        let message = FeagiMessage::AgentConfiguration(
+            AgentEmbodimentConfigurationMessage::AgentConfigurationDetails(device_def),
+        );
+        control
+            .send_message(message, 0)
+            .map_err(|e| format!("Failed to send device configuration: {}", e))?;
         Ok(())
     }
 
@@ -556,6 +583,25 @@ impl PyAgentClient {
             .maybe_send_heartbeat()
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))?;
         Ok(client.registered)
+    }
+
+    /// Return AgentID (base64) assigned at registration, or None if not connected.
+    fn get_registration_agent_id_b64(&self) -> PyResult<Option<String>> {
+        let client = self.inner.lock().map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Lock poisoned: {}", e))
+        })?;
+        Ok(client.registration_agent_id_b64.clone())
+    }
+
+    /// Send device registrations to FEAGI over ZMQ (AgentConfiguration message).
+    /// Call after connect() when the agent has motors. Replaces HTTP device_registrations import.
+    fn send_device_configuration(&self, device_registrations_json: &str) -> PyResult<()> {
+        let mut client = self.inner.lock().map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Lock poisoned: {}", e))
+        })?;
+        client
+            .send_device_configuration(device_registrations_json)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
     }
 
     fn disconnect(&mut self) -> PyResult<()> {
