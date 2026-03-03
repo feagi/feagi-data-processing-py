@@ -817,7 +817,7 @@ dependencies = [
 
 [[package]]
 name = "feagi_rust_py_libs"
-version = "0.0.90"
+version = "0.0.91"
 dependencies = [
  "base64 0.22.1",
  "feagi-agent",
