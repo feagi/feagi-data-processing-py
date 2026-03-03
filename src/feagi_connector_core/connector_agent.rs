@@ -947,6 +947,38 @@ impl PyConnectorAgent {
             .map_err(|e| PyFeagiError::from(FeagiDataError::SerializationError(e.to_string())))
             .map_err(Into::into)
     }
+
+    /// Derive motor cortical IDs from the current device registrations.
+    ///
+    /// Returns the same IDs that FEAGI derives when auto-creating cortical areas.
+    /// Use for verification so controller expectations match FEAGI exactly.
+    pub fn get_motor_cortical_ids_for_verification(&self, py: Python<'_>) -> PyResult<Vec<String>> {
+        let json_value = self
+            .inner
+            .export_device_registrations_as_config_json()
+            .map_err(PyFeagiError::from)?;
+        let ids = py.detach(|| {
+            crate::feagi_connector_core::device_registration_derive::derive_motor_cortical_ids_from_device_registrations(&json_value)
+        })
+        .map_err(|e| PyFeagiError::from(FeagiDataError::BadParameters(e.into())))?;
+        Ok(ids.into_iter().collect())
+    }
+
+    /// Derive sensory cortical IDs from the current device registrations.
+    ///
+    /// Returns the same IDs that FEAGI derives when auto-creating cortical areas.
+    /// Use for verification so controller expectations match FEAGI exactly.
+    pub fn get_sensory_cortical_ids_for_verification(&self, py: Python<'_>) -> PyResult<Vec<String>> {
+        let json_value = self
+            .inner
+            .export_device_registrations_as_config_json()
+            .map_err(PyFeagiError::from)?;
+        let ids = py.detach(|| {
+            crate::feagi_connector_core::device_registration_derive::derive_sensory_cortical_ids_from_device_registrations(&json_value)
+        })
+        .map_err(|e| PyFeagiError::from(FeagiDataError::BadParameters(e.into())))?;
+        Ok(ids.into_iter().collect())
+    }
     
     /// Import capabilities from JSON string (devices must be registered first!)
     /// 
