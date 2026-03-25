@@ -7,7 +7,7 @@ features = ["pyo3/extension-module"]
 
 [package]
 name = "feagi_rust_py_libs"
-version = "0.0.93"
+version = "0.0.95"
 edition = "2021"
 rust-version = "1.87"
 
@@ -20,12 +20,12 @@ crate-type = ["cdylib"]
 [dependencies]
 # Unify to zune-jpeg 0.5.8 (0.5.7 fails on Rust 1.78+ target_feature/unsafe; 0.5.8 requires Rust 1.87)
 zune-jpeg = "0.5.8"
-feagi-agent = { version = "0.0.1" }
-feagi-io = { version = "0.0.1" }
-feagi-sensorimotor = { version = "0.0.1" }
-feagi-serialization = { version = "0.0.1" }
-feagi_data_structures = { package = "feagi-structures", version = "0.0.1" }
-feagi-evolutionary = { version = "0.0.1" }
+feagi-agent = { version = "0.0.2" }
+feagi-io = { version = "0.0.2" }
+feagi-sensorimotor = { version = "0.0.2" }
+feagi-serialization = { version = "0.0.2" }
+feagi_data_structures = { package = "feagi-structures", version = "0.0.2" }
+feagi-evolutionary = { version = "0.0.2" }
 numpy = "0.27.1"
 ndarray = "0.17"
 paste = "1.0.15"
@@ -38,7 +38,7 @@ heck = "0.5"
 
 
 [build-dependencies]
-feagi_data_structures = { package = "feagi-structures", version = "0.0.1" }
+feagi_data_structures = { package = "feagi-structures", version = "0.0.2" }
 heck = "0.5"
 
 [dependencies.pyo3]
