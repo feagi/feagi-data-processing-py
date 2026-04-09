@@ -48,14 +48,14 @@ fn insert_sensor_cortical_type(template: String, sensor_class_def: String) -> St
             if let Some(pos) = template.find(genome_end_marker) {
                 let mut result = String::new();
                 result.push_str(&template[..pos]);
-                result.push_str("\n");
+                result.push('\n');
                 result.push_str(&sensor_class_def);
                 result.push_str(&template[pos..]);
                 result
             } else {
                 // Last resort: just return template with sensor class appended
                 let mut result = template;
-                result.push_str("\n");
+                result.push('\n');
                 result.push_str(&sensor_class_def);
                 result
             }

@@ -29,7 +29,7 @@ fn generate_motor_registration_functions() -> String {
     for variant in &variants {
         functions.push_str("    //region ");
         functions.push_str(&variant.snake_case_name);
-        functions.push_str("\n");
+        functions.push('\n');
 
         functions.push_str(&motor_unique_functions(
             &variant.snake_case_name,
@@ -51,7 +51,7 @@ fn generate_sensor_registration_functions() -> String {
     for variant in &variants {
         functions.push_str("    //region ");
         functions.push_str(&variant.snake_case_name);
-        functions.push_str("\n");
+        functions.push('\n');
         functions.push_str(&generate_sensor_functions_for_coder_type(
             &variant.snake_case_name,
             &variant.default_coder_type,
