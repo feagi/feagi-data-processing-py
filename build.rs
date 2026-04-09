@@ -37,7 +37,7 @@ fn save_source_file(data: String, file_path: &str) {
 }
 
 #[allow(dead_code)]
-fn check_for_segment(source_string: &String, checking: &str) {
+fn check_for_segment(source_string: &str, checking: &str) {
     _ = source_string.find(checking)
         .unwrap_or_else(|| panic!("Could not find '{}' requirement in source file!", checking));
 }

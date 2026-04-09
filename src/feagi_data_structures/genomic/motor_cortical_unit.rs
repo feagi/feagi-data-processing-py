@@ -113,7 +113,7 @@ impl PyMotorCorticalUnit {
         Ok((dims[0], dims[1], dims[2]))
     }
 
-    /// Generate the output cortical IDs for Simple Vision Output (`oimg`) for a given group.
+    /// Generate the output cortical IDs for Simple Vision (`oimg`) for a given group.
     ///
     /// This uses the Rust `MotorCorticalUnit` template as the single source of truth.
     ///
@@ -136,7 +136,7 @@ impl PyMotorCorticalUnit {
         Ok(ids.into_iter().map(Into::into).collect())
     }
 
-    /// Get the default per-channel dimensions for Simple Vision Output (`oimg`).
+    /// Get the default per-channel dimensions for Simple Vision (`oimg`).
     ///
     /// This returns the *per-channel* dimensions (channel_dimensions_default) from the
     /// canonical `MotorCorticalUnit::SimpleVisionOutput` template.
