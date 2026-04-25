@@ -1,4 +1,3 @@
-
 // Note: While you can divide up derive blocks in multiple lines, you cannot with pyclass blocks
 
 // TODO instead of having so many macros, we should be having some sort of configuration into one
@@ -19,12 +18,15 @@ macro_rules! create_pyclass {
 
         impl From<&$rust_name> for $py_wrapped_name {
             fn from(reference: &$rust_name) -> Self {
-                $py_wrapped_name { inner: reference.clone() }
+                $py_wrapped_name {
+                    inner: reference.clone(),
+                }
             }
         }
 
         impl $py_wrapped_name {
-            pub fn copy_out_from_bound(bounded: &pyo3::Bound< $py_wrapped_name>) -> $rust_name { // needs clone
+            pub fn copy_out_from_bound(bounded: &pyo3::Bound<$py_wrapped_name>) -> $rust_name {
+                // needs clone
                 bounded.borrow().inner.clone()
             }
         }
@@ -81,7 +83,6 @@ macro_rules! create_pyclass_with_hash {
 #[macro_export]
 macro_rules! create_pyclass_no_clone {
     ($py_wrapped_name:ident, $rust_name:ty, $py_name:expr) => {
-
         #[pyclass(str)]
         #[pyo3(name = $py_name)]
         #[derive(Debug)]
@@ -134,19 +135,33 @@ macro_rules! create_pyclass_no_clone_unsendable {
                 $py_wrapped_name { inner: rust_struct }
             }
 
-            pub fn wrap_to_bound_any(py: pyo3::Python<'_>, rust_struct: $rust_name) -> pyo3::PyResult<pyo3::Bound<'_, pyo3::PyAny>> {
+            pub fn wrap_to_bound_any(
+                py: pyo3::Python<'_>,
+                rust_struct: $rust_name,
+            ) -> pyo3::PyResult<pyo3::Bound<'_, pyo3::PyAny>> {
                 pyo3::Bound::new(py, Self { inner: rust_struct }).map(|b| b.into_any())
             }
 
-            pub fn wrap_self_into_bound_any(self, py: pyo3::Python<'_>) -> pyo3::PyResult<pyo3::Bound<'_, pyo3::PyAny>> {
+            pub fn wrap_self_into_bound_any(
+                self,
+                py: pyo3::Python<'_>,
+            ) -> pyo3::PyResult<pyo3::Bound<'_, pyo3::PyAny>> {
                 pyo3::Bound::new(py, self).map(|b| b.into_any())
             }
 
-            pub fn try_extract_from_bound_any<'py>(obj: pyo3::Bound<'py, pyo3::PyAny>) -> Result<pyo3::PyRef<'py, Self>, feagi_data_structures::FeagiDataError> {
-                use pyo3::prelude::PyAnyMethods;
+            pub fn try_extract_from_bound_any<'py>(
+                obj: pyo3::Bound<'py, pyo3::PyAny>,
+            ) -> Result<pyo3::PyRef<'py, Self>, feagi_data_structures::FeagiDataError> {
                 use feagi_data_structures::FeagiDataError;
+                use pyo3::prelude::PyAnyMethods;
                 obj.cast::<Self>()
-                    .map_err(|_| FeagiDataError::BadParameters(format!("Expected {} but got {:?}", $py_name, obj.get_type())))?
+                    .map_err(|_| {
+                        FeagiDataError::BadParameters(format!(
+                            "Expected {} but got {:?}",
+                            $py_name,
+                            obj.get_type()
+                        ))
+                    })?
                     .try_borrow()
                     .map_err(|e| FeagiDataError::BadParameters(format!("Failed to borrow: {}", e)))
             }
@@ -160,7 +175,6 @@ macro_rules! create_pyclass_no_clone_unsendable {
         }
     };
 }
-
 
 // NOTE: technically #[macro_export] is required for visibility
 /// Shared implementation of base py classes
@@ -186,12 +200,11 @@ macro_rules! __base_py_class_shared {
             }
         }
 
-
         impl $py_wrapped_name {
             /// Create Python wrapped instance of the given Rust structure
             #[allow(dead_code)]
             pub(crate) fn new_from_rust(rust_struct: $rust_name) -> Self {
-                $py_wrapped_name {inner: rust_struct}
+                $py_wrapped_name { inner: rust_struct }
             }
 
             /*
@@ -201,8 +214,11 @@ macro_rules! __base_py_class_shared {
             }
              */
             /// Static wrapping an existing rust non-py wrapped instance directly to PyAny. Used only in specific contexts
-            pub fn wrap_to_bound_any(py: Python<'_>, rust_struct: $rust_name) -> PyResult<Bound<'_, PyAny>> {
-                Bound::new(py, Self {inner: rust_struct} ).map(|b| b.into_any())
+            pub fn wrap_to_bound_any(
+                py: Python<'_>,
+                rust_struct: $rust_name,
+            ) -> PyResult<Bound<'_, PyAny>> {
+                Bound::new(py, Self { inner: rust_struct }).map(|b| b.into_any())
             }
 
             /// Wraps self into into a Bound<PyAny>. Used only in specific contexts
@@ -213,15 +229,22 @@ macro_rules! __base_py_class_shared {
             /// Attempt to downcast as a reference to the python wrapper.
             /// Use &ref.inner to borrow the rust data.
             /// Note that doing if-elif-else chains will have to be the main way to get out a type from multiple.
-            pub fn try_extract_from_bound_any<'py>(obj: pyo3::Bound<'py, pyo3::PyAny>) -> Result<pyo3::PyRef<'py, Self>, feagi_data_structures::FeagiDataError> {
-                use pyo3::prelude::PyAnyMethods;
+            pub fn try_extract_from_bound_any<'py>(
+                obj: pyo3::Bound<'py, pyo3::PyAny>,
+            ) -> Result<pyo3::PyRef<'py, Self>, feagi_data_structures::FeagiDataError> {
                 use feagi_data_structures::FeagiDataError;
+                use pyo3::prelude::PyAnyMethods;
                 obj.cast::<Self>()
-                    .map_err(|_| FeagiDataError::BadParameters(format!("Expected {} but got {:?}", $py_name, obj.get_type())))?
+                    .map_err(|_| {
+                        FeagiDataError::BadParameters(format!(
+                            "Expected {} but got {:?}",
+                            $py_name,
+                            obj.get_type()
+                        ))
+                    })?
                     .try_borrow()
                     .map_err(|e| FeagiDataError::BadParameters(format!("Failed to borrow: {}", e)))
             }
-
         }
 
         #[pyo3::pymethods]
@@ -232,4 +255,3 @@ macro_rules! __base_py_class_shared {
         }
     };
 }
-

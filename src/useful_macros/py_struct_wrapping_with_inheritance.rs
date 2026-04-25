@@ -1,4 +1,3 @@
-
 /// These implementations do not need the parent to store a shared state in a box (child st
 //region No Box (Child stores data)
 /// Creates a parent class for python, when exposing rust structs that share a trait.
@@ -8,7 +7,6 @@
 #[macro_export]
 macro_rules! create_trait_parent_pyclass {
     ($parent_class_name_in_python:expr, $py_class_parent_name_in_rust:ident) => {
-
         #[pyo3::pyclass(str, subclass)]
         #[pyo3(name = $parent_class_name_in_python)]
         #[derive(Debug, Clone)]
@@ -21,7 +19,10 @@ macro_rules! create_trait_parent_pyclass {
         }
 
         impl std::fmt::Display for $py_class_parent_name_in_rust {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+            fn fmt(
+                &self,
+                f: &mut std::fmt::Formatter<'_>,
+            ) -> std::result::Result<(), std::fmt::Error> {
                 write!(f, "{}", $parent_class_name_in_python)
             }
         }
@@ -39,12 +40,11 @@ macro_rules! create_trait_parent_pyclass {
 #[macro_export]
 macro_rules! create_trait_child_pyclass {
     ($parent_pyclass_in_rust:ident, $py_class_name_in_rust:ident, $class_name_in_python_str:expr, $representing_rust_struct:ty) => {
-
         #[pyo3::pyclass(str, extends=$parent_pyclass_in_rust)]
         #[derive(Debug, Clone)]
         #[pyo3(name = $class_name_in_python_str)]
         pub struct $py_class_name_in_rust {
-            pub inner: $representing_rust_struct
+            pub inner: $representing_rust_struct,
         }
 
         // Require print support
@@ -68,14 +68,32 @@ macro_rules! create_trait_child_pyclass {
 
         impl $py_class_name_in_rust {
             /// You MUST use this for the new constructor, and ONLY for that usecase!. Your "new" must use this and return (PyChild, PyParent)
-            fn python_new_child_constructor(child_rust_struct: $representing_rust_struct) -> (Self, $parent_pyclass_in_rust) {
-                ($py_class_name_in_rust {inner: child_rust_struct}, $parent_pyclass_in_rust::new_blank_parent())
+            fn python_new_child_constructor(
+                child_rust_struct: $representing_rust_struct,
+            ) -> (Self, $parent_pyclass_in_rust) {
+                (
+                    $py_class_name_in_rust {
+                        inner: child_rust_struct,
+                    },
+                    $parent_pyclass_in_rust::new_blank_parent(),
+                )
             }
 
             /// You MUST use for all other constructors except for "new"
-            pub fn python_etc_child_constructor<'py>(_py: Python<'py>, child_rust_struct: $representing_rust_struct) -> PyResult<Py<Self>> {
+            pub fn python_etc_child_constructor<'py>(
+                _py: Python<'py>,
+                child_rust_struct: $representing_rust_struct,
+            ) -> PyResult<Py<Self>> {
                 Python::attach(|py| {
-                    Py::new(py, ($py_class_name_in_rust { inner: child_rust_struct}, $parent_pyclass_in_rust::new_blank_parent()) ) // TODO this is outdated
+                    Py::new(
+                        py,
+                        (
+                            $py_class_name_in_rust {
+                                inner: child_rust_struct,
+                            },
+                            $parent_pyclass_in_rust::new_blank_parent(),
+                        ),
+                    ) // TODO this is outdated
                 })
             }
 
@@ -83,11 +101,10 @@ macro_rules! create_trait_child_pyclass {
             #[allow(dead_code)]
             fn export_as_python_child<'py>(self, _py: Python<'py>) -> PyResult<Py<Self>> {
                 Python::attach(|py| {
-                    Py::new(py, (self, $parent_pyclass_in_rust::new_blank_parent()) ) // TODO this is outdated
+                    Py::new(py, (self, $parent_pyclass_in_rust::new_blank_parent())) // TODO this is outdated
                 })
             }
         }
-
     };
 }
 //endregion
@@ -227,7 +244,6 @@ macro_rules! create_trait_parent_with_box_pyclass {
 #[macro_export]
 macro_rules! create_trait_child_with_box_pyclass {
     ($parent_pyclass_in_rust:ident, $py_class_name_in_rust:ident, $class_name_in_python_str:expr, $boxed_rust_type:ident, $rust_child_concrete_type:ident) => {
-
         #[pyo3::pyclass(str, extends=$parent_pyclass_in_rust)]
         #[derive(Debug, Clone)]
         #[pyo3(name = $class_name_in_python_str)]
@@ -244,42 +260,63 @@ macro_rules! create_trait_child_with_box_pyclass {
 
         impl $py_class_name_in_rust {
             /// You MUST use this for the new constructor, and ONLY for that usecase!. Your "new" must use this and return (PyChild, PyParent)
-            pub(crate) fn python_new_child_constructor(boxed_data: Box<dyn $boxed_rust_type + Send + Sync>) -> (Self, $parent_pyclass_in_rust) {
-                ($py_class_name_in_rust {}, $parent_pyclass_in_rust::new_parent(boxed_data))
+            pub(crate) fn python_new_child_constructor(
+                boxed_data: Box<dyn $boxed_rust_type + Send + Sync>,
+            ) -> (Self, $parent_pyclass_in_rust) {
+                (
+                    $py_class_name_in_rust {},
+                    $parent_pyclass_in_rust::new_parent(boxed_data),
+                )
             }
         }
 
-
         impl $py_class_name_in_rust {
-
             // To use the following functions, call them from a a pymethods block with input "slf: PyRef<Self>" and in the format of "Self::get_parent_box(&slf)"
 
-            fn get_parent_box<'a>(slf: &'a PyRef<'_, Self>) -> &'a Box<dyn $boxed_rust_type + Send + Sync> {
+            fn get_parent_box<'a>(
+                slf: &'a PyRef<'_, Self>,
+            ) -> &'a Box<dyn $boxed_rust_type + Send + Sync> {
                 let parent: &$parent_pyclass_in_rust = slf.as_ref();
                 &parent.inner
             }
 
-            fn get_parent_box_mut<'a>(slf: &'a mut PyRefMut<'_, Self>) -> &'a mut Box<dyn $boxed_rust_type + Send + Sync> {
+            fn get_parent_box_mut<'a>(
+                slf: &'a mut PyRefMut<'_, Self>,
+            ) -> &'a mut Box<dyn $boxed_rust_type + Send + Sync> {
                 let parent: &mut $parent_pyclass_in_rust = slf.as_mut();
                 &mut parent.inner
             }
 
-            fn get_ref<'a>(slf: &'a PyRef<'_, Self>) -> Result<&'a $rust_child_concrete_type, feagi_data_structures::FeagiDataError> {
+            fn get_ref<'a>(
+                slf: &'a PyRef<'_, Self>,
+            ) -> Result<&'a $rust_child_concrete_type, feagi_data_structures::FeagiDataError> {
                 let parent_box = Self::get_parent_box(slf);
-                parent_box.as_any().downcast_ref::<$rust_child_concrete_type>()
-                    .ok_or_else(|| feagi_data_structures::FeagiDataError::InternalError("Type mismatch: expected unwrapped $py_class_name_in_rust".into()))
+                parent_box
+                    .as_any()
+                    .downcast_ref::<$rust_child_concrete_type>()
+                    .ok_or_else(|| {
+                        feagi_data_structures::FeagiDataError::InternalError(
+                            "Type mismatch: expected unwrapped $py_class_name_in_rust".into(),
+                        )
+                    })
             }
 
-            fn get_ref_mut<'a>(slf: &'a mut PyRefMut<'_, Self>) -> Result<&'a mut $rust_child_concrete_type, feagi_data_structures::FeagiDataError> {
+            fn get_ref_mut<'a>(
+                slf: &'a mut PyRefMut<'_, Self>,
+            ) -> Result<&'a mut $rust_child_concrete_type, feagi_data_structures::FeagiDataError>
+            {
                 let parent_box = Self::get_parent_box_mut(slf);
-                parent_box.as_any_mut().downcast_mut::<$rust_child_concrete_type>()
-                .ok_or_else(|| feagi_data_structures::FeagiDataError::InternalError("Type mismatch: expected unwrapped $py_class_name_in_rust".into()))
+                parent_box
+                    .as_any_mut()
+                    .downcast_mut::<$rust_child_concrete_type>()
+                    .ok_or_else(|| {
+                        feagi_data_structures::FeagiDataError::InternalError(
+                            "Type mismatch: expected unwrapped $py_class_name_in_rust".into(),
+                        )
+                    })
             }
         }
-
-
     };
 }
-
 
 //endregion

@@ -24,8 +24,8 @@ impl PyTextTokenCodec {
     /// rather than encoding a value of zero.
     #[staticmethod]
     pub fn encode_to_misc_data(token_id: u32, depth: u32) -> PyResult<PyMiscData> {
-        let inner =
-            encode_token_id_to_misc_data(token_id, depth).map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let inner = encode_token_id_to_misc_data(token_id, depth)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
         Ok(PyMiscData { inner })
     }
 
@@ -41,8 +41,8 @@ impl PyTextTokenCodec {
     /// Encode a token id into raw XYZP arrays (bitplanes along z, z=0 is MSB).
     #[staticmethod]
     pub fn encode_to_xyzp_arrays(token_id: u32, depth: u32) -> PyResult<PyNeuronVoxelXYZPArrays> {
-        let inner =
-            encode_token_id_to_xyzp_bitplanes(token_id, depth).map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let inner = encode_token_id_to_xyzp_bitplanes(token_id, depth)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
         Ok(PyNeuronVoxelXYZPArrays { inner })
     }
 
@@ -50,7 +50,10 @@ impl PyTextTokenCodec {
     ///
     /// Returns None for a gap (no token emitted).
     #[staticmethod]
-    pub fn decode_from_xyzp_arrays(xyzp: &PyNeuronVoxelXYZPArrays, depth: u32) -> PyResult<Option<u32>> {
+    pub fn decode_from_xyzp_arrays(
+        xyzp: &PyNeuronVoxelXYZPArrays,
+        depth: u32,
+    ) -> PyResult<Option<u32>> {
         decode_token_id_from_xyzp_bitplanes(&xyzp.inner, depth)
             .map_err(|e| PyValueError::new_err(e.to_string()))
     }
@@ -97,5 +100,3 @@ impl PyGpt2Tokenizer {
         Ok(self.inner.get_vocab_size(true))
     }
 }
-
-

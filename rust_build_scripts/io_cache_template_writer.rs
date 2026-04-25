@@ -1,5 +1,6 @@
-use crate::{check_for_segment, get_motor_variants, read_source_file, replace_code_segment, save_source_file};
-
+use crate::{
+    check_for_segment, get_motor_variants, read_source_file, replace_code_segment, save_source_file,
+};
 
 #[allow(dead_code)]
 pub fn update_connector_agent_source_file(file_path: &str) {
@@ -13,7 +14,12 @@ pub fn update_connector_agent_source_file(file_path: &str) {
     check_for_segment(&source_file_string, checking_flag); // Errors out here if not enabled!
 
     let motor_registration_functions = generate_motor_registration_functions();
-    let source_file_string = replace_code_segment(source_file_string, motor_start_comment, motor_end_comment, motor_registration_functions);
+    let source_file_string = replace_code_segment(
+        source_file_string,
+        motor_start_comment,
+        motor_end_comment,
+        motor_registration_functions,
+    );
 
     //let sensor_registration_functions = generate_sensor_registration_functions();
     //let source_file_string = replace_code_segment(source_file_string, sensor_start_comment, sensor_end_comment, sensor_registration_functions);
@@ -33,9 +39,12 @@ fn generate_motor_registration_functions() -> String {
 
         functions.push_str(&motor_unique_functions(
             &variant.snake_case_name,
-            &variant.accepted_wrapped_io_data_type
+            &variant.accepted_wrapped_io_data_type,
         ));
-        functions.push_str(&motor_shared_functions(&variant.snake_case_name, &variant.accepted_wrapped_io_data_type));
+        functions.push_str(&motor_shared_functions(
+            &variant.snake_case_name,
+            &variant.accepted_wrapped_io_data_type,
+        ));
 
         functions.push_str("    //endregion\n\n");
     }
@@ -65,7 +74,6 @@ fn generate_sensor_registration_functions() -> String {
 
 
  */
-
 
 //region Motor
 
@@ -291,15 +299,17 @@ fn motor_unique_functions(snake_case_name: &str, accepted_wrapped_io_data_type: 
     // Match on coder type to generate appropriate function
     // Currently all types use the same template, but each can be customized independently
     match accepted_wrapped_io_data_type {
-
         "Percentage" => percentage_1d,
-        "Percentage_3D" => percentage_1d, // TODO
+        "Percentage_3D" => percentage_1d,    // TODO
         "SignedPercentage" => percentage_1d, // TODO
         "MiscData" => percentage_1d,
         "GazeProperties" => percentage_1d,
         // Default case for any future types
         _ => {
-            println!("cargo:warning=Unknown coder type '{}', using default template", accepted_wrapped_io_data_type);
+            println!(
+                "cargo:warning=Unknown coder type '{}', using default template",
+                accepted_wrapped_io_data_type
+            );
             percentage_1d
         }
     }
@@ -308,7 +318,11 @@ fn motor_unique_functions(snake_case_name: &str, accepted_wrapped_io_data_type: 
 //endregion
 
 #[allow(dead_code)]
-fn generate_sensor_functions_for_coder_type(snake_case_name: &str, coder_type: &str, accepted_wrapped_io_data_type: &str) -> String {
+fn generate_sensor_functions_for_coder_type(
+    snake_case_name: &str,
+    coder_type: &str,
+    accepted_wrapped_io_data_type: &str,
+) -> String {
     // This function generates registration functions based on the coder type.
 
     let percentage_functions = format!(
@@ -862,7 +876,10 @@ fn generate_sensor_functions_for_coder_type(snake_case_name: &str, coder_type: &
 
         // Default case for any future types
         _ => {
-            println!("cargo:warning=Unknown sensor coder type '{}', using default template", coder_type);
+            println!(
+                "cargo:warning=Unknown sensor coder type '{}', using default template",
+                coder_type
+            );
             percentage_functions
         }
     }

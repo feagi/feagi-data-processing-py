@@ -1,25 +1,24 @@
-use pyo3::{pyclass, pymethods, PyResult, Python};
+use crate::py_error::PyFeagiError;
+use crate::{__base_py_class_shared, create_pyclass};
+use feagi_data_structures::genomic::cortical_area::CorticalID;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
-use feagi_data_structures::genomic::cortical_area::CorticalID;
-use crate::py_error::PyFeagiError;
-use crate::{create_pyclass, __base_py_class_shared};
+use pyo3::{pyclass, pymethods, PyResult, Python};
 
 create_pyclass!(PyCorticalID, CorticalID, "CorticalID");
 
 #[pymethods]
 impl PyCorticalID {
-
     //region Constructors
 
     /// Create a CorticalID from raw bytes.
-    /// 
+    ///
     /// Args:
     ///     bytes: A bytes object of exactly 8 bytes representing the cortical ID.
-    /// 
+    ///
     /// Returns:
     ///     CorticalID: The constructed cortical ID.
-    /// 
+    ///
     /// Raises:
     ///     ValueError: If the bytes are invalid or wrong length.
     #[staticmethod]
@@ -29,13 +28,13 @@ impl PyCorticalID {
     }
 
     /// Create a CorticalID from a 64-bit unsigned integer.
-    /// 
+    ///
     /// Args:
     ///     value: A 64-bit unsigned integer representing the cortical ID.
-    /// 
+    ///
     /// Returns:
     ///     CorticalID: The constructed cortical ID.
-    /// 
+    ///
     /// Raises:
     ///     ValueError: If the integer represents an invalid cortical ID.
     #[staticmethod]
@@ -45,13 +44,13 @@ impl PyCorticalID {
     }
 
     /// Create a CorticalID from a base64-encoded string.
-    /// 
+    ///
     /// Args:
     ///     base64_str: A base64-encoded string representing the cortical ID.
-    /// 
+    ///
     /// Returns:
     ///     CorticalID: The constructed cortical ID.
-    /// 
+    ///
     /// Raises:
     ///     ValueError: If the string is not valid base64 or represents an invalid cortical ID.
     #[staticmethod]
@@ -65,7 +64,7 @@ impl PyCorticalID {
     //region Export Methods
 
     /// Get the cortical ID as raw bytes.
-    /// 
+    ///
     /// Returns:
     ///     bytes: The 8-byte representation of the cortical ID.
     pub fn as_bytes<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
@@ -73,7 +72,7 @@ impl PyCorticalID {
     }
 
     /// Get the cortical ID as a 64-bit unsigned integer.
-    /// 
+    ///
     /// Returns:
     ///     int: The cortical ID as a 64-bit unsigned integer.
     pub fn as_u64(&self) -> u64 {
@@ -81,7 +80,7 @@ impl PyCorticalID {
     }
 
     /// Get the cortical ID as a base64-encoded string.
-    /// 
+    ///
     /// Returns:
     ///     str: The base64-encoded representation of the cortical ID.
     pub fn as_base_64(&self) -> String {

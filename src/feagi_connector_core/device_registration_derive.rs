@@ -67,12 +67,10 @@ pub fn derive_motor_cortical_ids_from_device_registrations(
             let group_u64 = unit_def
                 .get("cortical_unit_index")
                 .and_then(|v| v.as_u64())
-                .ok_or_else(|| {
-                    "Motor unit definition missing cortical_unit_index".to_string()
-                })?;
-            let group_u8: u8 = group_u64.try_into().map_err(|_| {
-                "Motor unit cortical_unit_index out of range for u8".to_string()
-            })?;
+                .ok_or_else(|| "Motor unit definition missing cortical_unit_index".to_string())?;
+            let group_u8: u8 = group_u64
+                .try_into()
+                .map_err(|_| "Motor unit cortical_unit_index out of range for u8".to_string())?;
             let group: CorticalUnitIndex = group_u8.into();
 
             let device_count = unit_def
@@ -140,18 +138,14 @@ pub fn derive_sensory_cortical_ids_from_device_registrations(
                 .ok_or_else(|| "Sensory unit definition entries must be arrays".to_string())?;
             let unit_def = pair
                 .first()
-                .ok_or_else(|| {
-                    "Sensory unit definition entry missing unit_def".to_string()
-                })?;
+                .ok_or_else(|| "Sensory unit definition entry missing unit_def".to_string())?;
             let group_u64 = unit_def
                 .get("cortical_unit_index")
                 .and_then(|v| v.as_u64())
-                .ok_or_else(|| {
-                    "Sensory unit definition missing cortical_unit_index".to_string()
-                })?;
-            let group_u8: u8 = group_u64.try_into().map_err(|_| {
-                "Sensory unit cortical_unit_index out of range for u8".to_string()
-            })?;
+                .ok_or_else(|| "Sensory unit definition missing cortical_unit_index".to_string())?;
+            let group_u8: u8 = group_u64
+                .try_into()
+                .map_err(|_| "Sensory unit cortical_unit_index out of range for u8".to_string())?;
             let group: CorticalUnitIndex = group_u8.into();
 
             let device_count = unit_def

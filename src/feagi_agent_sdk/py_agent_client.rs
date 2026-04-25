@@ -4,29 +4,28 @@
 
 use super::py_agent_config::{AgentConfigCompat, PyAgentConfig};
 use super::py_agent_type::AgentTypeCompat;
+use feagi_agent::clients::recovery::session::RebuildableSession;
 use feagi_agent::clients::{AgentRegistrationStatus, CommandControlAgent};
 use feagi_agent::command_and_control::agent_embodiment_configuration_message::AgentEmbodimentConfigurationMessage;
 use feagi_agent::command_and_control::FeagiMessage;
-use feagi_agent::{AgentCapabilities, AgentDescriptor, AuthToken};
-use feagi_sensorimotor::configuration::jsonable::JSONInputOutputDefinition;
+use feagi_agent::{AgentCapabilities, AgentDescriptor, AuthToken, FeagiAgentError};
 use feagi_data_structures::genomic::cortical_area::CorticalID;
 use feagi_data_structures::neuron_voxels::xyzp::{
     CorticalMappedXYZPNeuronVoxels, NeuronVoxelXYZPArrays,
 };
 use feagi_io::protocol_implementations::websocket::WebSocketUrl;
 use feagi_io::protocol_implementations::zmq::ZmqUrl;
-use feagi_io::traits_and_enums::client::{
-    FeagiClientPusher, FeagiClientSubscriber,
-};
+use feagi_io::traits_and_enums::client::{FeagiClientPusher, FeagiClientSubscriber};
 use feagi_io::traits_and_enums::shared::{FeagiEndpointState, TransportProtocolEndpoint};
 use feagi_io::AgentID;
+use feagi_sensorimotor::configuration::jsonable::JSONInputOutputDefinition;
 use feagi_serialization::FeagiByteContainer;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyBytes, PyList, PyTuple};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-struct AgentClientCompat {
+pub(crate) struct AgentClientCompat {
     config: AgentConfigCompat,
     command_control: Option<CommandControlAgent>,
     sensory_client: Option<Box<dyn FeagiClientPusher>>,
@@ -35,6 +34,10 @@ struct AgentClientCompat {
     last_heartbeat_sent_at: Option<Instant>,
     /// AgentID (base64) assigned at registration; used for device_registrations import
     registration_agent_id_b64: Option<String>,
+    /// Cached device registrations JSON (most recent successful send) so a
+    /// reconnect re-establishes the same device topology without needing
+    /// the controller to re-supply it.
+    last_device_registrations_json: Option<String>,
 }
 
 impl AgentClientCompat {
@@ -47,6 +50,7 @@ impl AgentClientCompat {
             registered: false,
             last_heartbeat_sent_at: None,
             registration_agent_id_b64: None,
+            last_device_registrations_json: None,
         }
     }
 
@@ -78,8 +82,19 @@ impl AgentClientCompat {
 
     fn connect(&mut self) -> Result<(), String> {
         if self.registered {
+            tracing::info!(
+                target: "feagi-rust-py-libs",
+                "connect: short-circuit, already registered"
+            );
             return Ok(());
         }
+
+        let connect_started_at = Instant::now();
+        tracing::info!(
+            target: "feagi-rust-py-libs",
+            "connect: start (registration_endpoint={})",
+            self.config.registration_endpoint
+        );
 
         let endpoint = Self::parse_endpoint(&self.config.registration_endpoint)?;
         let requester = endpoint
@@ -87,6 +102,10 @@ impl AgentClientCompat {
             .map_err(|e| e.to_string())?;
         let mut control = CommandControlAgent::new(requester);
         control.request_connect().map_err(|e| e.to_string())?;
+        tracing::info!(
+            target: "feagi-rust-py-libs",
+            "connect: control socket request_connect issued"
+        );
 
         let descriptor_cfg = self
             .config
@@ -114,12 +133,23 @@ impl AgentClientCompat {
             .config
             .registration_retries
             .ok_or_else(|| "registration_retries is not configured".to_string())?;
-        let timeout_ms = connect_timeout_ms.saturating_mul(registration_retries as u64).max(1);
+        let timeout_ms = connect_timeout_ms
+            .saturating_mul(registration_retries as u64)
+            .max(1);
         let deadline = Instant::now() + Duration::from_millis(timeout_ms);
+        tracing::info!(
+            target: "feagi-rust-py-libs",
+            "connect: registration deadline = {} ms (connect_timeout_ms={} * retries={})",
+            timeout_ms,
+            connect_timeout_ms,
+            registration_retries
+        );
         let mut sent_registration = false;
 
         let mut session_id: Option<AgentID> = None;
-        let mut endpoints: Option<std::collections::HashMap<AgentCapabilities, TransportProtocolEndpoint>> = None;
+        let mut endpoints: Option<
+            std::collections::HashMap<AgentCapabilities, TransportProtocolEndpoint>,
+        > = None;
 
         while Instant::now() < deadline {
             let (state, _message) = control.poll_for_messages().map_err(|e| e.to_string())?;
@@ -138,19 +168,38 @@ impl AgentClientCompat {
                     )
                     .map_err(|e| e.to_string())?;
                 sent_registration = true;
+                tracing::info!(
+                    target: "feagi-rust-py-libs",
+                    "connect: request_registration sent (capabilities={})",
+                    requested_capabilities.len()
+                );
             }
 
             if let AgentRegistrationStatus::Registered(id, map) = control.registration_status() {
                 session_id = Some(*id);
                 endpoints = Some(map.clone());
+                tracing::info!(
+                    target: "feagi-rust-py-libs",
+                    "connect: registered after {} ms (endpoints={})",
+                    connect_started_at.elapsed().as_millis(),
+                    map.len()
+                );
                 break;
             }
 
             std::thread::yield_now();
         }
 
-        let session_id = session_id.ok_or_else(|| "Registration timed out".to_string())?;
-        let endpoint_map = endpoints.ok_or_else(|| "No endpoint map after registration".to_string())?;
+        let session_id = session_id.ok_or_else(|| {
+            let msg = format!(
+                "Registration timed out after {} ms",
+                connect_started_at.elapsed().as_millis()
+            );
+            tracing::warn!(target: "feagi-rust-py-libs", "connect: {}", msg);
+            msg
+        })?;
+        let endpoint_map =
+            endpoints.ok_or_else(|| "No endpoint map after registration".to_string())?;
 
         if matches!(
             self.config.agent_type,
@@ -160,13 +209,23 @@ impl AgentClientCompat {
                 .get(&AgentCapabilities::SendSensorData)
                 .cloned()
                 .ok_or_else(|| "FEAGI registration did not provide sensory endpoint".to_string())?;
+            tracing::info!(
+                target: "feagi-rust-py-libs",
+                "connect: opening sensory pusher to FEAGI-provided endpoint"
+            );
             let props = sensory_endpoint
                 .try_create_boxed_client_pusher_properties()
                 .map_err(|e| e.to_string())?;
             let mut sensory_client = props.as_boxed_client_pusher();
-            sensory_client.request_connect().map_err(|e| e.to_string())?;
+            sensory_client
+                .request_connect()
+                .map_err(|e| e.to_string())?;
             self.wait_until_active_waiting_pusher(sensory_client.as_mut(), deadline)?;
             self.sensory_client = Some(sensory_client);
+            tracing::info!(
+                target: "feagi-rust-py-libs",
+                "connect: sensory pusher active"
+            );
         }
 
         if matches!(
@@ -177,6 +236,10 @@ impl AgentClientCompat {
                 .get(&AgentCapabilities::ReceiveMotorData)
                 .cloned()
                 .ok_or_else(|| "FEAGI registration did not provide motor endpoint".to_string())?;
+            tracing::info!(
+                target: "feagi-rust-py-libs",
+                "connect: opening motor subscriber to FEAGI-provided endpoint"
+            );
             let props = motor_endpoint
                 .try_create_boxed_client_subscriber_properties()
                 .map_err(|e| e.to_string())?;
@@ -184,12 +247,24 @@ impl AgentClientCompat {
             motor_client.request_connect().map_err(|e| e.to_string())?;
             self.wait_until_active_waiting_subscriber(motor_client.as_mut(), deadline)?;
             self.motor_client = Some(motor_client);
+            tracing::info!(
+                target: "feagi-rust-py-libs",
+                "connect: motor subscriber active"
+            );
         }
 
         self.registration_agent_id_b64 = Some(session_id.to_base64());
         self.command_control = Some(control);
         self.registered = true;
         self.last_heartbeat_sent_at = Some(Instant::now());
+        tracing::info!(
+            target: "feagi-rust-py-libs",
+            "connect: complete in {} ms (session_id={})",
+            connect_started_at.elapsed().as_millis(),
+            self.registration_agent_id_b64
+                .as_deref()
+                .unwrap_or("<unset>")
+        );
         Ok(())
     }
 
@@ -208,10 +283,28 @@ impl AgentClientCompat {
         let message = FeagiMessage::AgentConfiguration(
             AgentEmbodimentConfigurationMessage::AgentConfigurationDetails(device_def),
         );
+        let started_at = Instant::now();
+        tracing::info!(
+            target: "feagi-rust-py-libs",
+            "send_device_configuration: sending payload ({} bytes)",
+            device_registrations_json.len()
+        );
         control
             .send_message(message, 0)
             .map_err(|e| format!("Failed to send device configuration: {}", e))?;
+        self.last_device_registrations_json = Some(device_registrations_json.to_string());
+        tracing::info!(
+            target: "feagi-rust-py-libs",
+            "send_device_configuration: sent in {} ms",
+            started_at.elapsed().as_millis()
+        );
         Ok(())
+    }
+
+    /// Whether a previous call to `send_device_configuration` cached a payload
+    /// that a reconnect would replay.
+    pub(crate) fn has_cached_device_registrations(&self) -> bool {
+        self.last_device_registrations_json.is_some()
     }
 
     fn wait_until_active_waiting_pusher(
@@ -279,7 +372,9 @@ impl AgentClientCompat {
             }
         }
 
-        sensory_client.publish_data(bytes).map_err(|e| e.to_string())
+        sensory_client
+            .publish_data(bytes)
+            .map_err(|e| e.to_string())
     }
 
     fn encode_sensory_pairs_to_container(
@@ -306,8 +401,8 @@ impl AgentClientCompat {
         let area_bytes = cortical_area.as_bytes();
         let copy_len = area_bytes.len().min(8);
         id_bytes[..copy_len].copy_from_slice(&area_bytes[..copy_len]);
-        let cortical_id =
-            CorticalID::try_from_bytes(&id_bytes).map_err(|e| format!("Invalid cortical area id: {:?}", e))?;
+        let cortical_id = CorticalID::try_from_bytes(&id_bytes)
+            .map_err(|e| format!("Invalid cortical area id: {:?}", e))?;
 
         let width = vision.width as u32;
         let height = vision.height as u32;
@@ -346,8 +441,9 @@ impl AgentClientCompat {
             potentials.push(potential as f32);
         }
 
-        let arrays = NeuronVoxelXYZPArrays::new_from_vectors(x_coords, y_coords, z_coords, potentials)
-            .map_err(|e| format!("Failed to create neuron arrays: {}", e))?;
+        let arrays =
+            NeuronVoxelXYZPArrays::new_from_vectors(x_coords, y_coords, z_coords, potentials)
+                .map_err(|e| format!("Failed to create neuron arrays: {}", e))?;
         let mut mapped = CorticalMappedXYZPNeuronVoxels::new();
         mapped.insert(cortical_id, arrays);
 
@@ -373,9 +469,9 @@ impl AgentClientCompat {
                 .consume_retrieved_data()
                 .map_err(|e| e.to_string())?
                 .to_vec(),
-            FeagiEndpointState::ActiveWaiting | FeagiEndpointState::Pending | FeagiEndpointState::Inactive => {
-                return Ok(None)
-            }
+            FeagiEndpointState::ActiveWaiting
+            | FeagiEndpointState::Pending
+            | FeagiEndpointState::Inactive => return Ok(None),
             FeagiEndpointState::Errored(err) => {
                 return Err(format!("Motor socket errored: {}", err));
             }
@@ -399,7 +495,9 @@ impl AgentClientCompat {
         let motor_data = boxed_struct
             .as_any()
             .downcast_ref::<CorticalMappedXYZPNeuronVoxels>()
-            .ok_or_else(|| "Received motor payload is not CorticalMappedXYZPNeuronVoxels".to_string())?;
+            .ok_or_else(|| {
+                "Received motor payload is not CorticalMappedXYZPNeuronVoxels".to_string()
+            })?;
 
         let mut result = serde_json::Map::new();
         for (cortical_id, neuron_voxels) in motor_data.mappings.iter() {
@@ -409,7 +507,10 @@ impl AgentClientCompat {
             area_data.insert("y".to_string(), serde_json::json!(y_vec));
             area_data.insert("z".to_string(), serde_json::json!(z_vec));
             area_data.insert("p".to_string(), serde_json::json!(p_vec));
-            result.insert(cortical_id.as_base_64(), serde_json::Value::Object(area_data));
+            result.insert(
+                cortical_id.as_base_64(),
+                serde_json::Value::Object(area_data),
+            );
         }
 
         Ok(Some(serde_json::Value::Object(result).to_string()))
@@ -444,34 +545,80 @@ impl AgentClientCompat {
         Ok(())
     }
 
-    fn disconnect(&mut self) -> Result<(), String> {
+    /// Tear down the active session.
+    ///
+    /// `wait_for_ack` controls whether we synchronously poll for FEAGI's
+    /// deregistration response before tearing down local sockets. The public
+    /// `disconnect()` path uses `true` (preserve the existing observable
+    /// shutdown semantics). `rebuild()` uses `false` because, by the time we
+    /// reconnect, FEAGI typically has already wiped the prior session
+    /// server-side (e.g. genome reload) and will never send the ack — so the
+    /// 10-second poll loop is pure waste.
+    fn disconnect_internal(&mut self, wait_for_ack: bool) -> Result<(), String> {
         if !self.registered {
+            tracing::info!(
+                target: "feagi-rust-py-libs",
+                "disconnect: short-circuit, not registered (wait_for_ack={wait_for_ack})"
+            );
             return Ok(());
         }
 
+        let disconnect_started_at = Instant::now();
         let timeout_ms = self
             .config
             .connection_timeout_ms
             .ok_or_else(|| "connection_timeout_ms is not configured".to_string())?;
         let deadline = Instant::now() + Duration::from_millis(timeout_ms.max(1));
+        tracing::info!(
+            target: "feagi-rust-py-libs",
+            "disconnect: start (wait_for_ack={wait_for_ack}, deregistration ack budget = {} ms)",
+            if wait_for_ack { timeout_ms as i64 } else { 0 }
+        );
 
         if let Some(control) = self.command_control.as_mut() {
             control
                 .request_deregistration(Some("python-sdk disconnect".to_string()))
                 .map_err(|e| e.to_string())?;
+            tracing::info!(
+                target: "feagi-rust-py-libs",
+                "disconnect: request_deregistration sent (wait_for_ack={wait_for_ack})"
+            );
 
-            while Instant::now() < deadline {
-                let _ = control.poll_for_messages().map_err(|e| e.to_string())?;
-                if matches!(control.registration_status(), AgentRegistrationStatus::NotRegistered) {
-                    break;
+            if wait_for_ack {
+                let mut acked = false;
+                while Instant::now() < deadline {
+                    let _ = control.poll_for_messages().map_err(|e| e.to_string())?;
+                    if matches!(
+                        control.registration_status(),
+                        AgentRegistrationStatus::NotRegistered
+                    ) {
+                        acked = true;
+                        break;
+                    }
+                    std::thread::yield_now();
                 }
-                std::thread::yield_now();
+                tracing::info!(
+                    target: "feagi-rust-py-libs",
+                    "disconnect: deregistration {} after {} ms",
+                    if acked { "acknowledged" } else { "TIMED OUT (FEAGI never replied)" },
+                    disconnect_started_at.elapsed().as_millis()
+                );
+            } else {
+                tracing::info!(
+                    target: "feagi-rust-py-libs",
+                    "disconnect: skipping ack wait (fast teardown for reconnect path)"
+                );
             }
             if let Err(err) = control.request_disconnect() {
                 let msg = err.to_string();
                 if !msg.contains("Cannot disconnect: client is not in Active state") {
                     return Err(msg);
                 }
+                tracing::info!(
+                    target: "feagi-rust-py-libs",
+                    "disconnect: request_disconnect skipped ({})",
+                    msg
+                );
             }
         }
 
@@ -483,6 +630,10 @@ impl AgentClientCompat {
                 }
             }
             let _ = sensory.poll();
+            tracing::info!(
+                target: "feagi-rust-py-libs",
+                "disconnect: sensory pusher closed"
+            );
         }
         if let Some(motor) = self.motor_client.as_mut() {
             if let Err(err) = motor.request_disconnect() {
@@ -492,13 +643,133 @@ impl AgentClientCompat {
                 }
             }
             let _ = motor.poll();
+            tracing::info!(
+                target: "feagi-rust-py-libs",
+                "disconnect: motor subscriber closed"
+            );
         }
 
+        // Drop the boxed sockets one at a time, with tracing on either side of
+        // each `Drop` so a future hang at `zmq_close` is immediately visible.
+        // `zmq_close` blocks for the socket's linger period; client sockets
+        // default to linger=0 (see `feagi-io::client_implementations`), but
+        // operators may override that via `FEAGI_ZMQ_LINGER_MS`.
+        let drop_started_at = std::time::Instant::now();
+        tracing::info!(
+            target: "feagi-rust-py-libs",
+            "disconnect: dropping sensory pusher box"
+        );
         self.sensory_client = None;
+        tracing::info!(
+            target: "feagi-rust-py-libs",
+            "disconnect: sensory pusher dropped ({} ms)",
+            drop_started_at.elapsed().as_millis()
+        );
+
+        let motor_drop_started_at = std::time::Instant::now();
+        tracing::info!(
+            target: "feagi-rust-py-libs",
+            "disconnect: dropping motor subscriber box"
+        );
         self.motor_client = None;
+        tracing::info!(
+            target: "feagi-rust-py-libs",
+            "disconnect: motor subscriber dropped ({} ms)",
+            motor_drop_started_at.elapsed().as_millis()
+        );
+
+        let control_drop_started_at = std::time::Instant::now();
+        tracing::info!(
+            target: "feagi-rust-py-libs",
+            "disconnect: dropping command/control agent"
+        );
         self.command_control = None;
+        tracing::info!(
+            target: "feagi-rust-py-libs",
+            "disconnect: command/control agent dropped ({} ms)",
+            control_drop_started_at.elapsed().as_millis()
+        );
+
         self.registered = false;
         self.last_heartbeat_sent_at = None;
+        tracing::info!(
+            target: "feagi-rust-py-libs",
+            "disconnect: complete in {} ms",
+            disconnect_started_at.elapsed().as_millis()
+        );
+        Ok(())
+    }
+
+    /// Public disconnect that preserves the historical "wait for FEAGI ack
+    /// before tearing down sockets" behaviour. Called from
+    /// `PyAgentClient.disconnect()` (i.e., explicit Python-side shutdown).
+    fn disconnect(&mut self) -> Result<(), String> {
+        self.disconnect_internal(true)
+    }
+}
+
+/// `RebuildableSession` plug-in for the shared `feagi-agent` recovery loop.
+///
+/// `rebuild` performs a best-effort `disconnect` followed by a fresh
+/// `connect`, then replays the most recently cached device registrations
+/// (if any) so the new session has the same device topology as the old
+/// one. This is the same surface every other SDK (Java) will implement so
+/// behavior cannot drift.
+impl RebuildableSession for AgentClientCompat {
+    fn rebuild(&mut self, reason: &str) -> Result<(), FeagiAgentError> {
+        let rebuild_started_at = Instant::now();
+        tracing::info!(
+            target: "feagi-rust-py-libs",
+            "rebuild: start (reason={reason}, has_cached_device_registrations={})",
+            self.last_device_registrations_json.is_some()
+        );
+        if let Err(err) = self.disconnect_internal(false) {
+            tracing::warn!(
+                target: "feagi-rust-py-libs",
+                "rebuild: best-effort disconnect failed (reason={reason}): {err}"
+            );
+        }
+        tracing::info!(
+            target: "feagi-rust-py-libs",
+            "rebuild: about to call connect() (elapsed={} ms)",
+            rebuild_started_at.elapsed().as_millis()
+        );
+        self.connect().map_err(|e| {
+            tracing::warn!(
+                target: "feagi-rust-py-libs",
+                "rebuild: connect() failed after {} ms: {}",
+                rebuild_started_at.elapsed().as_millis(),
+                e
+            );
+            FeagiAgentError::ConnectionFailed(e)
+        })?;
+
+        if let Some(payload) = self.last_device_registrations_json.clone() {
+            tracing::info!(
+                target: "feagi-rust-py-libs",
+                "rebuild: replaying cached device_registrations (elapsed={} ms)",
+                rebuild_started_at.elapsed().as_millis()
+            );
+            self.send_device_configuration(&payload).map_err(|e| {
+                tracing::warn!(
+                    target: "feagi-rust-py-libs",
+                    "rebuild: send_device_configuration failed after {} ms: {}",
+                    rebuild_started_at.elapsed().as_millis(),
+                    e
+                );
+                FeagiAgentError::Other(e)
+            })?;
+        } else {
+            tracing::info!(
+                target: "feagi-rust-py-libs",
+                "rebuild: no cached device_registrations to replay"
+            );
+        }
+        tracing::info!(
+            target: "feagi-rust-py-libs",
+            "rebuild: complete in {} ms (reason={reason})",
+            rebuild_started_at.elapsed().as_millis()
+        );
         Ok(())
     }
 }
@@ -613,6 +884,38 @@ impl PyAgentClient {
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
     }
 
+    /// Force a fresh registration cycle: disconnect (best-effort), connect,
+    /// and replay the most recent device registrations payload if one was
+    /// previously sent.
+    ///
+    /// Use this when the controller has detected a FEAGI lifecycle event
+    /// (genome reload, FEAGI restart, prolonged unreachability) that
+    /// invalidated the prior session. The decision logic for *when* to
+    /// call this lives in the Rust `feagi-agent::clients::recovery`
+    /// module so behavior is identical across Python, Rust, and Java SDKs.
+    ///
+    /// On success the agent is registered again and any cached device
+    /// registrations have been re-sent. Raises `RuntimeError` on failure.
+    #[pyo3(signature = (reason=None))]
+    fn reconnect(&self, reason: Option<&str>) -> PyResult<()> {
+        let mut client = self.inner.lock().map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Lock poisoned: {}", e))
+        })?;
+        let reason_text = reason.unwrap_or("python-sdk reconnect");
+        client
+            .rebuild(reason_text)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
+    }
+
+    /// Whether the most recent successful `send_device_configuration` is
+    /// cached and will be replayed on the next `reconnect()`.
+    fn has_cached_device_registrations(&self) -> PyResult<bool> {
+        let client = self.inner.lock().map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Lock poisoned: {}", e))
+        })?;
+        Ok(client.has_cached_device_registrations())
+    }
+
     fn __repr__(&self) -> String {
         let registered = self.is_registered().unwrap_or(false);
         format!("PyAgentClient(registered={})", registered)
@@ -674,4 +977,3 @@ mod tests {
         assert!(err.contains("out of bounds"));
     }
 }
-

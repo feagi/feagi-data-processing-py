@@ -1,9 +1,9 @@
-use pyo3::{pyclass, pymethods, PyResult};
-use pyo3::prelude::*;
-use feagi_sensorimotor::data_types::descriptors::*;
-use crate::{create_pyclass, __base_py_class_shared};
 use crate::feagi_connector_core::data_types::{PyImageFrame, PySegmentedImageFrame};
 use crate::py_error::PyFeagiError;
+use crate::{__base_py_class_shared, create_pyclass};
+use feagi_sensorimotor::data_types::descriptors::*;
+use pyo3::prelude::*;
+use pyo3::{pyclass, pymethods, PyResult};
 
 //region Images
 
@@ -16,15 +16,19 @@ impl PyImageXYPoint {
     #[new]
     pub fn new(x: u32, y: u32) -> PyResult<Self> {
         Ok(PyImageXYPoint {
-            inner: ImageXYPoint::new(x, y)
+            inner: ImageXYPoint::new(x, y),
         })
     }
 
     #[getter]
-    pub fn x(&self) -> u32 {self.inner.x}
+    pub fn x(&self) -> u32 {
+        self.inner.x
+    }
 
     #[getter]
-    pub fn y(&self) -> u32 { self.inner.y }
+    pub fn y(&self) -> u32 {
+        self.inner.y
+    }
 }
 
 impl TryFrom<(u32, u32)> for PyImageXYPoint {
@@ -40,7 +44,6 @@ impl From<PyImageXYPoint> for (u32, u32) {
     }
 }
 
-
 create_pyclass!(PyImageXYResolution, ImageXYResolution, "ImageXYResolution");
 
 #[pymethods]
@@ -48,7 +51,7 @@ impl PyImageXYResolution {
     #[new]
     pub fn new(width: u32, height: u32) -> PyResult<Self> {
         Ok(PyImageXYResolution {
-            inner: ImageXYResolution::new(width, height).map_err(PyFeagiError::from)?
+            inner: ImageXYResolution::new(width, height).map_err(PyFeagiError::from)?,
         })
     }
 
@@ -80,25 +83,35 @@ impl From<PyImageXYResolution> for (u32, u32) {
 
 //region Image XYZ
 
-create_pyclass!(PyImageXYZDimensions, ImageXYZDimensions, "ImageXYZDimensions");
+create_pyclass!(
+    PyImageXYZDimensions,
+    ImageXYZDimensions,
+    "ImageXYZDimensions"
+);
 
 #[pymethods]
 impl PyImageXYZDimensions {
     #[new]
     pub fn new(x: u32, y: u32, z: u32) -> PyResult<Self> {
         Ok(PyImageXYZDimensions {
-            inner: ImageXYZDimensions::new(x, y, z).map_err(PyFeagiError::from)?
+            inner: ImageXYZDimensions::new(x, y, z).map_err(PyFeagiError::from)?,
         })
     }
 
     #[getter]
-    pub fn width(&self) -> u32 {self.inner.width}
+    pub fn width(&self) -> u32 {
+        self.inner.width
+    }
 
     #[getter]
-    pub fn height(&self) -> u32 { self.inner.height }
+    pub fn height(&self) -> u32 {
+        self.inner.height
+    }
 
     #[getter]
-    pub fn depth(&self) -> u32 { self.inner.depth }
+    pub fn depth(&self) -> u32 {
+        self.inner.depth
+    }
 }
 
 impl TryFrom<(u32, u32, u32)> for PyImageXYZDimensions {
@@ -114,12 +127,15 @@ impl From<PyImageXYZDimensions> for (u32, u32, u32) {
     }
 }
 
-
 //endregion
 
 //region Segmented Image XY Resolutions
 
-create_pyclass!(PySegmentedXYImageResolutions, SegmentedXYImageResolutions, "SegmentedXYImageResolutions");
+create_pyclass!(
+    PySegmentedXYImageResolutions,
+    SegmentedXYImageResolutions,
+    "SegmentedXYImageResolutions"
+);
 
 #[pymethods]
 impl PySegmentedXYImageResolutions {
@@ -146,14 +162,19 @@ impl PySegmentedXYImageResolutions {
             upper_middle.into(),
             upper_right.into(),
         );
-        PySegmentedXYImageResolutions {
-            inner
-        }
+        PySegmentedXYImageResolutions { inner }
     }
 
     #[staticmethod]
-    pub fn create_with_same_sized_peripheral(center_resolution: PyImageXYResolution, peripheral_resolutions: PyImageXYResolution) -> PySegmentedXYImageResolutions {
-        SegmentedXYImageResolutions::create_with_same_sized_peripheral(center_resolution.into(), peripheral_resolutions.into()).into()
+    pub fn create_with_same_sized_peripheral(
+        center_resolution: PyImageXYResolution,
+        peripheral_resolutions: PyImageXYResolution,
+    ) -> PySegmentedXYImageResolutions {
+        SegmentedXYImageResolutions::create_with_same_sized_peripheral(
+            center_resolution.into(),
+            peripheral_resolutions.into(),
+        )
+        .into()
     }
 
     pub fn as_ordered_array(&self) -> Vec<PyImageXYResolution> {
@@ -251,7 +272,7 @@ pub enum PyColorChannelLayout {
     GrayScale,
     RG,
     RGB,
-    RGBA
+    RGBA,
 }
 
 impl From<PyColorChannelLayout> for ColorChannelLayout {
@@ -330,16 +351,25 @@ impl From<MemoryOrderLayout> for PyMemoryOrderLayout {
 
 //region Image Frame Properties
 
-create_pyclass!(PyImageFrameProperties, ImageFrameProperties, "ImageFrameProperties");
+create_pyclass!(
+    PyImageFrameProperties,
+    ImageFrameProperties,
+    "ImageFrameProperties"
+);
 
 #[pymethods]
 impl PyImageFrameProperties {
     #[new]
-    pub fn new(xy_resolution: PyImageXYResolution, color_space: PyColorSpace, color_channel_layout: PyColorChannelLayout) -> PyResult<Self> {
+    pub fn new(
+        xy_resolution: PyImageXYResolution,
+        color_space: PyColorSpace,
+        color_channel_layout: PyColorChannelLayout,
+    ) -> PyResult<Self> {
         let color_space: ColorSpace = color_space.into();
         let color_channel_layout: ColorChannelLayout = color_channel_layout.into();
-        let inner = ImageFrameProperties::new(xy_resolution.into(), color_space, color_channel_layout)
-            .map_err(PyFeagiError::from)?;
+        let inner =
+            ImageFrameProperties::new(xy_resolution.into(), color_space, color_channel_layout)
+                .map_err(PyFeagiError::from)?;
         Ok(PyImageFrameProperties { inner })
     }
 
@@ -366,8 +396,12 @@ impl PyImageFrameProperties {
         self.inner.get_number_of_samples()
     }
 
-    pub fn verify_image_frame_matches_properties(&self, image_frame: &PyImageFrame) -> PyResult<()> {
-        self.inner.verify_image_frame_matches_properties(&image_frame.inner)
+    pub fn verify_image_frame_matches_properties(
+        &self,
+        image_frame: &PyImageFrame,
+    ) -> PyResult<()> {
+        self.inner
+            .verify_image_frame_matches_properties(&image_frame.inner)
             .map_err(PyFeagiError::from)?;
         Ok(())
     }
@@ -377,7 +411,11 @@ impl PyImageFrameProperties {
 
 //region Segmented Image Frame Properties
 
-create_pyclass!(PySegmentedImageFrameProperties, SegmentedImageFrameProperties, "SegmentedImageFrameProperties");
+create_pyclass!(
+    PySegmentedImageFrameProperties,
+    SegmentedImageFrameProperties,
+    "SegmentedImageFrameProperties"
+);
 
 #[pymethods]
 impl PySegmentedImageFrameProperties {
@@ -393,7 +431,8 @@ impl PySegmentedImageFrameProperties {
             center_color_channels.into(),
             peripheral_color_channels.into(),
             color_space.into(),
-        ).into())
+        )
+        .into())
     }
 
     #[getter]
@@ -410,20 +449,22 @@ impl PySegmentedImageFrameProperties {
     pub fn peripheral_color_channels(&self) -> PyColorChannelLayout {
         self.inner.get_peripheral_color_channels().into()
     }
-    
+
     #[getter]
     pub fn color_space(&self) -> PyColorSpace {
         self.inner.get_color_space().clone().into()
     }
 
-    pub fn verify_segmented_image_frame_matches_properties(&self, segmented_image_frame: &PySegmentedImageFrame) -> PyResult<()> {
-        self.inner.verify_segmented_image_frame_matches_properties(&segmented_image_frame.inner)
+    pub fn verify_segmented_image_frame_matches_properties(
+        &self,
+        segmented_image_frame: &PySegmentedImageFrame,
+    ) -> PyResult<()> {
+        self.inner
+            .verify_segmented_image_frame_matches_properties(&segmented_image_frame.inner)
             .map_err(PyFeagiError::from)?;
         Ok(())
     }
 }
-
-
 
 //endregion
 
@@ -435,8 +476,8 @@ create_pyclass!(PyCornerPoints, CornerPoints, "CornerPoints");
 impl PyCornerPoints {
     #[new]
     pub fn new(upper_left: PyImageXYPoint, lower_right: PyImageXYPoint) -> PyResult<Self> {
-        let inner = CornerPoints::new(upper_left.into(), lower_right.into())
-            .map_err(PyFeagiError::from)?;
+        let inner =
+            CornerPoints::new(upper_left.into(), lower_right.into()).map_err(PyFeagiError::from)?;
         Ok(PyCornerPoints { inner })
     }
 
@@ -471,7 +512,8 @@ impl PyCornerPoints {
     }
 
     pub fn verify_fits_in_resolution(&self, resolution: PyImageXYResolution) -> PyResult<()> {
-        self.inner.verify_fits_in_resolution(resolution.into())
+        self.inner
+            .verify_fits_in_resolution(resolution.into())
             .map_err(PyFeagiError::from)?;
         Ok(())
     }
@@ -483,14 +525,18 @@ impl PyCornerPoints {
 
 //region Misc Data Dimensions
 
-create_pyclass!(PyMiscDataDimensions, MiscDataDimensions, "MiscDataDimensions");
+create_pyclass!(
+    PyMiscDataDimensions,
+    MiscDataDimensions,
+    "MiscDataDimensions"
+);
 
 #[pymethods]
 impl PyMiscDataDimensions {
     #[new]
     pub fn new(x: u32, y: u32, z: u32) -> PyResult<Self> {
         Ok(PyMiscDataDimensions {
-            inner: MiscDataDimensions::new(x, y, z).map_err(PyFeagiError::from)?
+            inner: MiscDataDimensions::new(x, y, z).map_err(PyFeagiError::from)?,
         })
     }
 

@@ -1,8 +1,8 @@
-use pyo3::{pyclass, pymethods, PyResult};
-use pyo3::exceptions::PyValueError;
-use feagi_data_structures::motor_cortical_units;
-use feagi_data_structures::genomic::MotorCorticalUnit;
 use feagi_data_structures::genomic::cortical_area::descriptors::CorticalUnitIndex;
+use feagi_data_structures::genomic::MotorCorticalUnit;
+use feagi_data_structures::motor_cortical_units;
+use pyo3::exceptions::PyValueError;
+use pyo3::{pyclass, pymethods, PyResult};
 
 use crate::feagi_data_structures::genomic::cortical_area::{PyCorticalID, PyFrameChangeHandling};
 
@@ -60,7 +60,6 @@ macro_rules! define_motor_cortical_units_enum {
 
     };
 }
-
 
 // Generate the MotorCorticalUnit enum and all helper methods from the template
 motor_cortical_units!(define_motor_cortical_units_enum);
@@ -129,10 +128,11 @@ impl PyMotorCorticalUnit {
         group: u8,
     ) -> PyResult<Vec<PyCorticalID>> {
         let group: CorticalUnitIndex = group.into();
-        let ids = MotorCorticalUnit::get_cortical_ids_array_for_simple_vision_output_with_parameters(
-            frame_change_handling.inner,
-            group,
-        );
+        let ids =
+            MotorCorticalUnit::get_cortical_ids_array_for_simple_vision_output_with_parameters(
+                frame_change_handling.inner,
+                group,
+            );
         Ok(ids.into_iter().map(Into::into).collect())
     }
 

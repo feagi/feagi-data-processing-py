@@ -1,4 +1,3 @@
-
 // TODO can we automate the creation of enum keys?
 
 /// Allows easy wrapping of a flat enum
@@ -12,14 +11,12 @@ macro_rules! wrap_flat_enum {
     ($py_wrapped_name:ident, $rust_name:ty, $py_name:expr) => {
         #[pyclass(str, eq, hash, frozen)]
         #[pyo3(name = $py_name)]
-        #[derive(Debug, Clone)]
-        #[derive(PartialEq)]
-        #[derive(Hash)]
+        #[derive(Debug, Clone, PartialEq, Hash)]
         pub struct $py_wrapped_name {
             pub inner: $rust_name,
         }
 
-         __base_py_class_shared!($py_wrapped_name, $rust_name, $py_name);
+        __base_py_class_shared!($py_wrapped_name, $rust_name, $py_name);
 
         impl $py_wrapped_name {
             pub fn from_bound(bound: &pyo3::Bound<$py_wrapped_name>) -> $rust_name {
@@ -43,17 +40,14 @@ macro_rules! wrap_layered_enum {
         //#[pyo3::pyclass(str, eq, hash, frozen)]
         #[pyo3::pyclass(str, eq)]
         #[pyo3(name = $py_name)]
-        #[derive(Debug, Clone)]
-        #[derive(PartialEq)]
+        #[derive(Debug, Clone, PartialEq)]
         //#[derive(Hash)]
         pub struct $py_wrapped_name {
             pub inner: $rust_name,
         }
 
-         __base_py_class_shared!($py_wrapped_name, $rust_name, $py_name);
+        __base_py_class_shared!($py_wrapped_name, $rust_name, $py_name);
 
-        impl $py_wrapped_name {
-
-        }
+        impl $py_wrapped_name {}
     };
 }

@@ -63,7 +63,6 @@ fn insert_sensor_cortical_type(template: String, sensor_class_def: String) -> St
     }
 }
 
-
 // Commented out until updated for new feagi_data_structures API
 // fn generate_sensor_cortical_type_class() -> String {
 //     let variants = get_sensor_variants();

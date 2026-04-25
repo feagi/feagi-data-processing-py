@@ -1,6 +1,6 @@
 mod rust_build_scripts;
-use std::fs;
 use heck::ToSnakeCase;
+use std::fs;
 
 // NOTE: This crate uses a Cargo alias so existing code can refer to the
 // `feagi-structures` package as `feagi_data_structures`.
@@ -9,7 +9,7 @@ use feagi_data_structures::motor_cortical_units;
 fn main() {
     println!("cargo:rerun-if-changed=feagi_data_processing.pyi.template");
     println!("cargo:rerun-if-changed=src/feagi_connector_core/connector_agent.rs");
-    
+
     // NOTE: Code generation currently disabled - uncomment below to re-enable
     // let _template_path = "feagi_data_processing.pyi.template";
     // let _pyi_output_path = "feagi_data_processing.pyi";
@@ -17,40 +17,46 @@ fn main() {
     // rust_build_scripts::io_cache_template_writer::update_connector_agent_source_file(_io_cache_path);
 }
 
-
 // TODO: Rename to feagi_data_libraries?
 // TODO add macro(s) / funcs for going from PyObject to index types?
 // TODO: confirm func for building inheritance?
 
 #[allow(dead_code)]
 fn read_source_file(file_path: &str) -> String {
-    let content = fs::read_to_string(file_path)
-        .unwrap_or_else(|_| panic!("Failed to read {}", file_path));
+    let content =
+        fs::read_to_string(file_path).unwrap_or_else(|_| panic!("Failed to read {}", file_path));
     content
 }
 
 #[allow(dead_code)]
 fn save_source_file(data: String, file_path: &str) {
     // Write the updated content back to the file
-    fs::write(file_path, &data)
-        .unwrap_or_else(|_| panic!("Failed to write {}", file_path));
+    fs::write(file_path, &data).unwrap_or_else(|_| panic!("Failed to write {}", file_path));
 }
 
 #[allow(dead_code)]
 fn check_for_segment(source_string: &str, checking: &str) {
-    _ = source_string.find(checking)
+    _ = source_string
+        .find(checking)
         .unwrap_or_else(|| panic!("Could not find '{}' requirement in source file!", checking));
 }
 
 #[allow(dead_code)]
-fn replace_code_segment(source_string: String, start_marker: &str, end_marker: &str, replacing_string: String) -> String {
+fn replace_code_segment(
+    source_string: String,
+    start_marker: &str,
+    end_marker: &str,
+    replacing_string: String,
+) -> String {
     // Read the file
     let content = source_string;
 
     // Find the positions of the markers
-    let start_pos = content.find(start_marker)
+    let start_pos = content
+        .find(start_marker)
         .unwrap_or_else(|| panic!("Could not find {} marker in source file!", start_marker));
-    let end_pos = content.find(end_marker)
+    let end_pos = content
+        .find(end_marker)
         .unwrap_or_else(|| panic!("Could not find {} marker in source file!", end_marker));
 
     // Ensure the markers are in the correct order
@@ -71,7 +77,10 @@ fn replace_code_segment(source_string: String, start_marker: &str, end_marker: &
     };
 
     // Find the position before the end marker (including any leading whitespace on that line)
-    let replace_end = content[..end_pos].rfind('\n').map(|pos| pos + 1).unwrap_or(end_pos);
+    let replace_end = content[..end_pos]
+        .rfind('\n')
+        .map(|pos| pos + 1)
+        .unwrap_or(end_pos);
 
     // Build the new content
     let mut new_content = String::new();
@@ -81,8 +90,6 @@ fn replace_code_segment(source_string: String, start_marker: &str, end_marker: &
 
     new_content
 }
-
-
 
 //region Collect Sensor / Motor context
 
@@ -182,8 +189,7 @@ fn get_sensor_variants() -> Vec<SensorVariant> {
 
 #[allow(dead_code)]
 fn get_motor_variants() -> Vec<MotorVariant> {
-     motor_cortical_units!(collect_motor_variants)
+    motor_cortical_units!(collect_motor_variants)
 }
-
 
 //endregion

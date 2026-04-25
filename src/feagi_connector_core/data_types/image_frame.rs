@@ -1,33 +1,43 @@
-use numpy::{PyArray3, PyReadonlyArray3};
-use pyo3::prelude::*;
-use pyo3::exceptions::PyValueError;
-use feagi_sensorimotor::data_types::ImageFrame;
-use pyo3::types::PyBytes;
 use crate::feagi_connector_core::data_types::descriptors::*;
-use crate::{create_pyclass, __base_py_class_shared};
+use crate::{__base_py_class_shared, create_pyclass};
+use feagi_sensorimotor::data_types::ImageFrame;
+use numpy::{PyArray3, PyReadonlyArray3};
+use pyo3::exceptions::PyValueError;
+use pyo3::prelude::*;
+use pyo3::types::PyBytes;
 
 create_pyclass!(PyImageFrame, ImageFrame, "ImageFrame");
 
 #[pymethods]
 impl PyImageFrame {
-    
     #[staticmethod]
     #[allow(non_snake_case)]
-    pub fn INTERNAL_MEMORY_LAYOUT() -> PyMemoryOrderLayout { ImageFrame::INTERNAL_MEMORY_LAYOUT.into() }
-    
+    pub fn INTERNAL_MEMORY_LAYOUT() -> PyMemoryOrderLayout {
+        ImageFrame::INTERNAL_MEMORY_LAYOUT.into()
+    }
+
     //region Common Constructors
     #[new]
-    pub fn new(channel_format: PyColorChannelLayout, color_space: PyColorSpace, xy_resolution: PyImageXYResolution) -> PyResult<Self> {
-        let result = ImageFrame::new(&channel_format.into(), &color_space.into(), &xy_resolution.into());
+    pub fn new(
+        channel_format: PyColorChannelLayout,
+        color_space: PyColorSpace,
+        xy_resolution: PyImageXYResolution,
+    ) -> PyResult<Self> {
+        let result = ImageFrame::new(
+            &channel_format.into(),
+            &color_space.into(),
+            &xy_resolution.into(),
+        );
         match result {
             Ok(image_frame) => Ok(PyImageFrame { inner: image_frame }),
             Err(err) => Err(PyErr::new::<PyValueError, _>(format!("{}", err))),
-
         }
     }
 
     #[staticmethod]
-    pub fn new_from_image_frame_properties(image_frame_properties: PyImageFrameProperties) -> PyResult<PyImageFrame> {
+    pub fn new_from_image_frame_properties(
+        image_frame_properties: PyImageFrameProperties,
+    ) -> PyResult<PyImageFrame> {
         let result = ImageFrame::new_from_image_frame_properties(&image_frame_properties.into());
         match result {
             Ok(inner) => Ok(PyImageFrame { inner }),
@@ -36,7 +46,12 @@ impl PyImageFrame {
     }
 
     #[staticmethod]
-    pub fn new_from_array(input: PyReadonlyArray3<u8>, color_space: PyColorSpace, source_memory_order: PyMemoryOrderLayout, _py: Python) -> PyResult<PyImageFrame> {
+    pub fn new_from_array(
+        input: PyReadonlyArray3<u8>,
+        color_space: PyColorSpace,
+        source_memory_order: PyMemoryOrderLayout,
+        _py: Python,
+    ) -> PyResult<PyImageFrame> {
         let array = input.as_array().to_owned();
         match ImageFrame::from_array(array, &color_space.into(), &source_memory_order.into()) {
             Ok(inner) => Ok(PyImageFrame { inner }),
@@ -45,7 +60,11 @@ impl PyImageFrame {
     }
 
     #[staticmethod]
-    pub fn new_from_png_bytes<'py>(_py: Python<'py>, bytes: Bound<'py, PyBytes>, color_space: PyColorSpace) -> PyResult<Self> {
+    pub fn new_from_png_bytes<'py>(
+        _py: Python<'py>,
+        bytes: Bound<'py, PyBytes>,
+        color_space: PyColorSpace,
+    ) -> PyResult<Self> {
         let bytes_vec = bytes.as_bytes().to_vec();
         let result = ImageFrame::new_from_png_bytes(&bytes_vec, &color_space.into());
         match result {
@@ -55,7 +74,11 @@ impl PyImageFrame {
     }
 
     #[staticmethod]
-    pub fn new_from_bmp_bytes<'py>(_py: Python<'py>, bytes: Bound<'py, PyBytes>, color_space: PyColorSpace) -> PyResult<Self> {
+    pub fn new_from_bmp_bytes<'py>(
+        _py: Python<'py>,
+        bytes: Bound<'py, PyBytes>,
+        color_space: PyColorSpace,
+    ) -> PyResult<Self> {
         let bytes_vec = bytes.as_bytes().to_vec();
         let result = ImageFrame::new_from_bmp_bytes(&bytes_vec, &color_space.into());
         match result {
@@ -65,7 +88,11 @@ impl PyImageFrame {
     }
 
     #[staticmethod]
-    pub fn new_from_jpeg_bytes<'py>(_py: Python<'py>, bytes: Bound<'py, PyBytes>, color_space: PyColorSpace) -> PyResult<Self> {
+    pub fn new_from_jpeg_bytes<'py>(
+        _py: Python<'py>,
+        bytes: Bound<'py, PyBytes>,
+        color_space: PyColorSpace,
+    ) -> PyResult<Self> {
         let bytes_vec = bytes.as_bytes().to_vec();
         let result = ImageFrame::new_from_jpeg_bytes(&bytes_vec, &color_space.into());
         match result {
@@ -75,7 +102,11 @@ impl PyImageFrame {
     }
 
     #[staticmethod]
-    pub fn new_from_tiff_bytes<'py>(_py: Python<'py>, bytes: Bound<'py, PyBytes>, color_space: PyColorSpace) -> PyResult<Self> {
+    pub fn new_from_tiff_bytes<'py>(
+        _py: Python<'py>,
+        bytes: Bound<'py, PyBytes>,
+        color_space: PyColorSpace,
+    ) -> PyResult<Self> {
         let bytes_vec = bytes.as_bytes().to_vec();
         let result = ImageFrame::new_from_tiff_bytes(&bytes_vec, &color_space.into());
         match result {
@@ -91,7 +122,7 @@ impl PyImageFrame {
     pub fn get_image_frame_properties(&self) -> PyImageFrameProperties {
         self.inner.get_image_frame_properties().into()
     }
-    
+
     #[getter]
     pub fn channel_layout(&self) -> PyColorChannelLayout {
         self.inner.get_channel_layout().clone().into()
@@ -125,14 +156,17 @@ impl PyImageFrame {
     }
 
     pub fn copy_to_numpy_array<'py>(&self, py: Python) -> PyResult<Py<PyArray3<u8>>> {
-        Ok(Py::from(PyArray3::from_array(py, &self.inner.get_pixels_view())))
+        Ok(Py::from(PyArray3::from_array(
+            py,
+            &self.inner.get_pixels_view(),
+        )))
     }
 
     #[getter]
-    pub fn skip_encoding(&self) -> bool { // Since we cannot expose the inner public property, we do this
+    pub fn skip_encoding(&self) -> bool {
+        // Since we cannot expose the inner public property, we do this
         self.inner.skip_encoding
     }
-
 
     //endregion
 
@@ -165,7 +199,6 @@ impl PyImageFrame {
             Err(err) => Err(PyErr::new::<PyValueError, _>(err.to_string())),
         }
     }
-
 
     //endregion
 

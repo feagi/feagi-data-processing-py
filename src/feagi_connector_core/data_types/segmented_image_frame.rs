@@ -1,10 +1,14 @@
-use pyo3::prelude::*;
-use pyo3::exceptions::PyValueError;
-use feagi_sensorimotor::data_types::SegmentedImageFrame;
 use crate::feagi_connector_core::data_types::descriptors::*;
-use crate::{create_pyclass, __base_py_class_shared};
+use crate::{__base_py_class_shared, create_pyclass};
+use feagi_sensorimotor::data_types::SegmentedImageFrame;
+use pyo3::exceptions::PyValueError;
+use pyo3::prelude::*;
 
-create_pyclass!(PySegmentedImageFrame, SegmentedImageFrame, "SegmentedImageFrame");
+create_pyclass!(
+    PySegmentedImageFrame,
+    SegmentedImageFrame,
+    "SegmentedImageFrame"
+);
 
 #[pymethods]
 impl PySegmentedImageFrame {
@@ -20,7 +24,7 @@ impl PySegmentedImageFrame {
             &segment_resolutions.into(),
             &segment_color_space.into(),
             &center_color_channels.into(),
-            &peripheral_color_channels.into()
+            &peripheral_color_channels.into(),
         ) {
             Ok(inner) => Ok(PySegmentedImageFrame { inner }),
             Err(err) => Err(PyErr::new::<PyValueError, _>(err.to_string())),
@@ -28,7 +32,9 @@ impl PySegmentedImageFrame {
     }
 
     #[staticmethod]
-    pub fn from_segmented_image_frame_properties(properties: PySegmentedImageFrameProperties) -> PyResult<Self> {
+    pub fn from_segmented_image_frame_properties(
+        properties: PySegmentedImageFrameProperties,
+    ) -> PyResult<Self> {
         let result = SegmentedImageFrame::from_segmented_image_frame_properties(&properties.into());
         match result {
             Ok(segmented) => Ok(PySegmentedImageFrame { inner: segmented }),

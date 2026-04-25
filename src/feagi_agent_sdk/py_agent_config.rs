@@ -302,7 +302,9 @@ impl PyAgentConfig {
 
 #[cfg(test)]
 mod tests {
-    use super::{AgentConfigCompat, AgentDescriptorCompat, AgentTypeCompat, VisionCapabilityCompat};
+    use super::{
+        AgentConfigCompat, AgentDescriptorCompat, AgentTypeCompat, VisionCapabilityCompat,
+    };
 
     fn valid_config() -> AgentConfigCompat {
         let mut cfg = AgentConfigCompat::new("agent-1".to_string(), AgentTypeCompat::Both);
@@ -449,4 +451,3 @@ impl PyAgentConfig {
         Ok(())
     }
 }
-
