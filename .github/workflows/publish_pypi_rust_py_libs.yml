@@ -106,11 +106,14 @@ jobs:
         uses: PyO3/maturin-action@v1
         env:
           CXXFLAGS: ${{ matrix.platform.target == 'aarch64' && '-std=c++11' || '' }}
+          # ring: AArch64 .S files expect __ARM_ARCH when cross-compiling; define explicitly.
+          CFLAGS_aarch64_unknown_linux_gnu: ${{ matrix.platform.target == 'aarch64' && '-D__ARM_ARCH=8' || '' }}
         with:
           rust-toolchain: "1.87"
           target: ${{ matrix.platform.target }}
           args: --release --out dist --find-interpreter
-          sccache: true
+          # sccache wrapping aarch64-linux-gnu-gcc breaks ring's asm preprocessing (__ARM_ARCH).
+          sccache: ${{ matrix.platform.target != 'aarch64' }}
           manylinux: auto
           before-script-linux: |
             if [ "${{ matrix.platform.target }}" = "aarch64" ]; then
@@ -197,12 +200,8 @@ jobs:
         uses: PyO3/maturin-action@v1
         env:
           CXXFLAGS: ${{ matrix.platform.target == 'aarch64' && '-std=c++11' || '' }}
-        with:
-          rust-toolchain: "1.87"
-          target: ${{ matrix.platform.target }}
-          args: --release --out dist --find-interpreter
-          sccache: true
-          manylinux: musllinux_1_2
+          # ring: AArch64 .S preprocessing for aarch64-unknown-linux-musl cross-builds.
+          CFLAGS_aarch64_unknown_linux_musl: ${{ matrix.platform.target == 'aarch64' && '-D__ARM_ARCH=8' || '' }}
           before-script-linux: |
             if [ "${{ matrix.platform.target }}" = "aarch64" ]; then
               # For aarch64 cross-compilation: install cross-compilation toolchain
