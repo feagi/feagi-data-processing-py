@@ -106,14 +106,28 @@ jobs:
         uses: PyO3/maturin-action@v1
         env:
           CXXFLAGS: ${{ matrix.platform.target == 'aarch64' && '-std=c++11' || '' }}
+          CFLAGS_aarch64_unknown_linux_gnu: ${{ matrix.platform.target == 'aarch64' && '-D__ARM_ARCH=8' || '' }}
+          SCCACHE_DISABLE: ${{ matrix.platform.target == 'aarch64' && '1' || '' }}
         with:
           rust-toolchain: "1.87"
           target: ${{ matrix.platform.target }}
           args: --release --out dist --find-interpreter
-          sccache: true
+          # NEVER use sccache: ${{ matrix.platform.bool }} — YAML false becomes string "false", JS truthy, sccache stays ON.
+          # Linux Docker builds: disable sccache entirely so cc-rs/ring never invokes `sccache aarch64-linux-gnu-gcc`.
+          sccache: false
           manylinux: auto
+          docker-options: >-
+            ${{ matrix.platform.target == 'aarch64'
+              && '-e SCCACHE_DISABLE=1 -e RUSTC_WRAPPER= -e CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc -e CXX_aarch64_unknown_linux_gnu=aarch64-linux-gnu-g++ -e CFLAGS_aarch64_unknown_linux_gnu=-D__ARM_ARCH=8'
+              || ''
+            }}
           before-script-linux: |
             if [ "${{ matrix.platform.target }}" = "aarch64" ]; then
+              export SCCACHE_DISABLE=1
+              unset RUSTC_WRAPPER || true
+              export CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc
+              export CXX_aarch64_unknown_linux_gnu=aarch64-linux-gnu-g++
+              export CFLAGS_aarch64_unknown_linux_gnu="-D__ARM_ARCH=8"
               # For aarch64 cross-compilation: install cross-compilation toolchain
               # (vendored OpenSSL configured in previous step)
               if command -v yum >/dev/null 2>&1; then
@@ -197,14 +211,26 @@ jobs:
         uses: PyO3/maturin-action@v1
         env:
           CXXFLAGS: ${{ matrix.platform.target == 'aarch64' && '-std=c++11' || '' }}
+          CFLAGS_aarch64_unknown_linux_musl: ${{ matrix.platform.target == 'aarch64' && '-D__ARM_ARCH=8' || '' }}
+          SCCACHE_DISABLE: ${{ matrix.platform.target == 'aarch64' && '1' || '' }}
         with:
           rust-toolchain: "1.87"
           target: ${{ matrix.platform.target }}
           args: --release --out dist --find-interpreter
-          sccache: true
+          sccache: false
           manylinux: musllinux_1_2
+          docker-options: >-
+            ${{ matrix.platform.target == 'aarch64'
+              && '-e SCCACHE_DISABLE=1 -e RUSTC_WRAPPER= -e CC_aarch64_unknown_linux_musl=aarch64-linux-gnu-gcc -e CXX_aarch64_unknown_linux_musl=aarch64-linux-gnu-g++ -e CFLAGS_aarch64_unknown_linux_musl=-D__ARM_ARCH=8'
+              || ''
+            }}
           before-script-linux: |
             if [ "${{ matrix.platform.target }}" = "aarch64" ]; then
+              export SCCACHE_DISABLE=1
+              unset RUSTC_WRAPPER || true
+              export CC_aarch64_unknown_linux_musl=aarch64-linux-gnu-gcc
+              export CXX_aarch64_unknown_linux_musl=aarch64-linux-gnu-g++
+              export CFLAGS_aarch64_unknown_linux_musl="-D__ARM_ARCH=8"
               # For aarch64 cross-compilation: install cross-compilation toolchain
               # (vendored OpenSSL configured in previous step)
               if command -v yum >/dev/null 2>&1; then
