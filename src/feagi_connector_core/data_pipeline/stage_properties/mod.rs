@@ -1,5 +1,5 @@
 // TEMPORARILY DISABLED: These wrappers need to be reimplemented for enum-based PipelineStageProperties
-// 
+//
 // After json_config merge, PipelineStageProperties changed from trait-based (individual structs)
 // to enum-based (single enum with variants). These PyO3 wrappers need to be refactored.
 //

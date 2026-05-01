@@ -3,10 +3,14 @@ use pyo3::{pymethods, PyResult};
 
 use feagi_sensorimotor::data_types::ImageFilteringSettings;
 
-use crate::{create_pyclass, __base_py_class_shared};
 use crate::feagi_connector_core::data_types::{PyPercentage, PyPercentage2D};
+use crate::{__base_py_class_shared, create_pyclass};
 
-create_pyclass!(PyImageFilteringSettings, ImageFilteringSettings, "ImageFilteringSettings");
+create_pyclass!(
+    PyImageFilteringSettings,
+    ImageFilteringSettings,
+    "ImageFilteringSettings"
+);
 
 #[pymethods]
 impl PyImageFilteringSettings {
@@ -34,4 +38,3 @@ impl PyImageFilteringSettings {
         }
     }
 }
-

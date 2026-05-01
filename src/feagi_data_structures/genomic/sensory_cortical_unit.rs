@@ -1,11 +1,10 @@
-use pyo3::{pyclass, pymethods, PyResult};
-use pyo3::exceptions::PyValueError;
-use feagi_data_structures::sensor_cortical_units;
-use feagi_data_structures::genomic::SensoryCorticalUnit;
 use feagi_data_structures::genomic::cortical_area::descriptors::CorticalUnitIndex;
+use feagi_data_structures::genomic::SensoryCorticalUnit;
+use feagi_data_structures::sensor_cortical_units;
+use pyo3::exceptions::PyValueError;
+use pyo3::{pyclass, pymethods, PyResult};
 
 use crate::feagi_data_structures::genomic::cortical_area::{PyCorticalID, PyFrameChangeHandling};
-
 
 macro_rules! define_sensor_cortical_units_enum {
     (
@@ -64,7 +63,6 @@ macro_rules! define_sensor_cortical_units_enum {
     };
 }
 
-
 // Generate the SensoryCorticalUnit enum and all helper methods from the template
 sensor_cortical_units!(define_sensor_cortical_units_enum);
 
@@ -89,10 +87,11 @@ impl PySensoryCorticalUnit {
         group: u8,
     ) -> PyResult<Vec<PyCorticalID>> {
         let group: CorticalUnitIndex = group.into();
-        let ids = SensoryCorticalUnit::get_cortical_ids_array_for_text_english_input_with_parameters(
-            frame_change_handling.inner,
-            group,
-        );
+        let ids =
+            SensoryCorticalUnit::get_cortical_ids_array_for_text_english_input_with_parameters(
+                frame_change_handling.inner,
+                group,
+            );
         Ok(ids.into_iter().map(Into::into).collect())
     }
 
