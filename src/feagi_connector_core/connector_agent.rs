@@ -9,6 +9,7 @@ use crate::py_error::PyFeagiError;
 use feagi_data_structures::genomic::cortical_area::descriptors::*;
 use feagi_data_structures::genomic::cortical_area::io_cortical_area_configuration_flag::FrameChangeHandling;
 use feagi_data_structures::genomic::cortical_area::io_cortical_area_configuration_flag::PercentageNeuronPositioning;
+use feagi_data_structures::genomic::MotorCorticalUnit;
 use feagi_data_structures::{motor_cortical_units, sensor_cortical_units, FeagiDataError};
 use feagi_sensorimotor::caching::{MotorDeviceCache, SensorDeviceCache};
 use feagi_sensorimotor::data_pipeline::PipelineStagePropertyIndex;
@@ -18,7 +19,8 @@ use feagi_sensorimotor::wrapped_io_data::WrappedIOData;
 use feagi_sensorimotor::ConnectorCache;
 use pyo3::prelude::*;
 use pyo3::pymethods;
-use pyo3::types::{PyByteArray, PyBytes};
+use pyo3::types::{PyByteArray, PyBytes, PyTuple};
+use pyo3::exceptions::PyTypeError;
 use pyo3::PyResult;
 use std::sync::MutexGuard;
 use std::time::Instant;
@@ -990,6 +992,44 @@ macro_rules! motor_unit_functions {
 
 }
 
+/// Dispatches `MotorCorticalUnit` to the matching `MotorDeviceCache::*_try_register_motor_callback`.
+macro_rules! motor_python_callback_dispatcher {
+    (
+        MotorCorticalUnit {
+            $(
+                $(#[doc = $doc:expr])?
+                $motor_variant:ident => {
+                    $($inner:tt)*
+                }
+            ),* $(,)?
+        }
+    ) => {
+        ::paste::paste! {
+            fn connector_agent_dispatch_motor_python_callback<F>(
+                motor_cache: &mut MotorDeviceCache,
+                motor_unit: MotorCorticalUnit,
+                group: CorticalUnitIndex,
+                channel_index: CorticalChannelIndex,
+                callback: F,
+            ) -> Result<feagi_data_structures::FeagiSignalIndex, FeagiDataError>
+            where
+                F: Fn(&WrappedIOData) + Send + Sync + 'static,
+            {
+                match motor_unit {
+                    $(
+                        MotorCorticalUnit::$motor_variant => motor_cache
+                            .[<$motor_variant:snake _try_register_motor_callback>](
+                                group,
+                                channel_index,
+                                callback,
+                            ),
+                    )*
+                }
+            }
+        }
+    };
+}
+
 create_pyclass_no_clone_unsendable!(PyConnectorAgent, ConnectorCache, "ConnectorAgent");
 
 impl PyConnectorAgent {
@@ -1187,6 +1227,85 @@ impl PyConnectorAgent {
         Ok(())
     }
 
+    /// Python SDK parity: route motor cache updates into a callable `(value, command_mode=None, ...)`.
+    ///
+    /// `motor_unit` is a [`crate::feagi_data_structures::genomic::PyMotorCorticalUnit`] or a length-1 tuple
+    /// containing one (matching existing SDK call sites).
+    #[pyo3(signature = (*, motor_unit, group, channel, callback))]
+    pub fn register_callback(
+        &mut self,
+        py: Python<'_>,
+        motor_unit: Bound<'_, PyAny>,
+        group: u8,
+        channel: u32,
+        callback: Py<PyAny>,
+    ) -> PyResult<()> {
+        use crate::feagi_connector_core::wrapped_io_data::wrapped_io_data_to_py_object;
+        use crate::feagi_data_structures::genomic::PyMotorCorticalUnit;
+
+        fn extract_py_motor_unit(any: &Bound<'_, PyAny>) -> PyResult<PyMotorCorticalUnit> {
+            if let Ok(u) = any.extract::<PyMotorCorticalUnit>() {
+                return Ok(u);
+            }
+            if let Ok(tuple) = Bound::cast::<PyTuple>(any) {
+                if tuple.len() == 1 {
+                    if let Ok(first) = tuple.get_item(0) {
+                        if let Ok(u) = first.extract::<PyMotorCorticalUnit>() {
+                            return Ok(u);
+                        }
+                    }
+                }
+            }
+            Err(PyTypeError::new_err(
+                "motor_unit must be MotorCorticalUnit (feagi_rust_py_libs.data_structures.genomic) \
+                 or a 1-tuple containing it",
+            ))
+        }
+
+        let py_unit = extract_py_motor_unit(&motor_unit)?;
+        let rust_unit: MotorCorticalUnit = py_unit.into();
+        let group: CorticalUnitIndex = group.into();
+        let channel: CorticalChannelIndex = channel.into();
+
+        let py_cb = callback.clone_ref(py);
+
+        let bridge = move |wired: &WrappedIOData| {
+            #[allow(deprecated)] // FIXME: migrate to Python::attach when FEAGI's MSRV/Python policy settles
+            Python::with_gil(|py| {
+                let py_val: Py<PyAny> = match wrapped_io_data_to_py_object(py, wired) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        tracing::warn!(
+                            target: "feagi_connector_py",
+                            "register_callback: failed to convert motor value to Python: {}",
+                            e
+                        );
+                        return;
+                    }
+                };
+                let none: Py<PyAny> = py.None();
+                if let Err(e) = py_cb.call1(py, (py_val, none)) {
+                    tracing::warn!(
+                        target: "feagi_connector_py",
+                        "register_callback: Python motor handler raised: {}",
+                        e
+                    );
+                }
+            });
+        };
+
+        let mut motor_cache = self.get_motor_cache();
+        connector_agent_dispatch_motor_python_callback(
+            &mut motor_cache,
+            rust_unit,
+            group,
+            channel,
+            bridge,
+        )
+        .map_err(PyFeagiError::from)?;
+        Ok(())
+    }
+
     // While technically possible, we are going to discourage grabbing the FeagiByteContainer directly and
     // instead push to use the above methods to access the byte data, as they make use of
     // internal optimizations
@@ -1230,3 +1349,4 @@ impl PyConnectorAgent {
 sensor_cortical_units!(sensor_unit_functions);
 
 motor_cortical_units!(motor_unit_functions);
+motor_cortical_units!(motor_python_callback_dispatcher);
