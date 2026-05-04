@@ -778,8 +778,6 @@ dependencies = [
 [[package]]
 name = "feagi-sensorimotor"
 version = "0.0.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae2013354f2e01c69ae7ceb2938173b59f75e226c2316ab642f6f43edc56cc63"
 dependencies = [
  "feagi-serialization",
  "feagi-structures",
@@ -795,8 +793,6 @@ dependencies = [
 [[package]]
 name = "feagi-serialization"
 version = "0.0.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7757149ffed1086453d0346075ffd78780dddde5f8575eac37150fc6cffa9f22"
 dependencies = [
  "byteorder",
  "feagi-structures",
@@ -807,8 +803,6 @@ dependencies = [
 [[package]]
 name = "feagi-structures"
 version = "0.0.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23ba5cad360a4a40efd7f6d84aecdf9329293266e375864b8f7356572e299458"
 dependencies = [
  "base64 0.22.1",
  "ndarray",
@@ -821,7 +815,7 @@ dependencies = [
 
 [[package]]
 name = "feagi_rust_py_libs"
-version = "0.0.101"
+version = "0.0.102"
 dependencies = [
  "base64 0.22.1",
  "feagi-agent",

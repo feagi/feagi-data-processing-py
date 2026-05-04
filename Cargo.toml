@@ -48,4 +48,10 @@ heck = "0.5"
 version = "0.27.2"
 features = ["abi3-py38", "multiple-pymethods"] # "abi3-py38" tells pyo3 (and maturin) to rust_build_scripts using the stable ABI with minimum Python version 3.8
 
+# Monorepo dev: align connector motor decode with workspace feagi-sensorimotor (e.g. RotaryMotor along-Z).
+# Omit this `[patch]` when publishing feagi-rust-py-libs to PyPI.
+[patch.crates-io]
+feagi-sensorimotor = { path = "../feagi-core/crates/feagi-sensorimotor" }
+feagi-serialization = { path = "../feagi-core/crates/feagi-serialization" }
+feagi-structures = { path = "../feagi-core/crates/feagi-structures" }
 
