@@ -516,6 +516,50 @@ impl AgentClientCompat {
         Ok(Some(serde_json::Value::Object(result).to_string()))
     }
 
+    /// Polls the motor socket and returns the raw, verified FEAGI byte payload.
+    ///
+    /// Unlike [`Self::receive_motor_data`], this performs NO XYZP-to-JSON conversion;
+    /// the bytes are returned untouched so the Rust motor decoder (`MotorDeviceCache`)
+    /// can decode them directly. Returns `None` when no data is currently available.
+    fn receive_motor_data_raw(&mut self) -> Result<Option<Vec<u8>>, String> {
+        if !self.registered {
+            return Err("Agent is not registered".to_string());
+        }
+        self.maybe_send_heartbeat()?;
+        let motor_client = self
+            .motor_client
+            .as_mut()
+            .ok_or_else(|| "Motor socket is not available for this agent type".to_string())?;
+
+        let raw_data: Vec<u8> = match motor_client.poll() {
+            FeagiEndpointState::ActiveHasData => motor_client
+                .consume_retrieved_data()
+                .map_err(|e| e.to_string())?
+                .to_vec(),
+            FeagiEndpointState::ActiveWaiting
+            | FeagiEndpointState::Pending
+            | FeagiEndpointState::Inactive => return Ok(None),
+            FeagiEndpointState::Errored(err) => {
+                return Err(format!("Motor socket errored: {}", err));
+            }
+        };
+
+        // Verify the payload decodes to the expected motor structure before handing the
+        // bytes to the decoder, preserving the validation contract of receive_motor_data.
+        let mut buffer = FeagiByteContainer::new_empty();
+        buffer
+            .try_write_data_by_copy_and_verify(&raw_data)
+            .map_err(|e| e.to_string())?;
+        let structure_count = buffer
+            .try_get_number_contained_structures()
+            .map_err(|e| e.to_string())?;
+        if structure_count == 0 {
+            return Ok(None);
+        }
+
+        Ok(Some(raw_data))
+    }
+
     fn maybe_send_heartbeat(&mut self) -> Result<(), String> {
         if !self.registered {
             return Ok(());
@@ -844,6 +888,23 @@ impl PyAgentClient {
         client
             .receive_motor_data()
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
+    }
+
+    /// Polls the motor socket and returns the raw verified FEAGI byte payload, or
+    /// `None` when no data is available.
+    ///
+    /// Intended to feed the Rust motor decoder directly (no Python-side XYZP decode).
+    fn receive_motor_data_raw<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> PyResult<Option<Bound<'py, PyBytes>>> {
+        let mut client = self.inner.lock().map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Lock poisoned: {}", e))
+        })?;
+        let maybe_bytes = client
+            .receive_motor_data_raw()
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))?;
+        Ok(maybe_bytes.map(|bytes| PyBytes::new(py, &bytes)))
     }
 
     fn is_registered(&self) -> PyResult<bool> {

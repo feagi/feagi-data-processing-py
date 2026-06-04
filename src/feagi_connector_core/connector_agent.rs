@@ -990,6 +990,161 @@ macro_rules! motor_unit_functions {
         // Stub to satisfy macro - no-op.
     };
 
+    // Arm for WrappedIOType::SpatialPointer3D
+    (@generate_functions
+        $motor_unit:ident,
+        SpatialPointer3D
+    ) => {
+        ::paste::paste! {
+            #[pymethods]
+            impl PyConnectorAgent {
+                /// Registers a SpatialPointer motor area.
+                ///
+                /// `frame_change_handling` selects the decode mechanism and the output type:
+                /// - `Absolute` decodes an unsigned position (`Percentage3D`, axes in [0, 1]).
+                ///   `window_ms`/`max_axis_velocity` are ignored.
+                /// - `Incremental` decodes a signed motion vector (`SignedPercentage3D`, axes
+                ///   in [-1, 1], 0 = no motion) and REQUIRES `window_ms` and
+                ///   `max_axis_velocity` (the rolling-window length and the per-axis velocity
+                ///   mapped to full scale).
+                #[pyo3(signature = (
+                    group,
+                    number_channels,
+                    frame_change_handling,
+                    percentage_neuron_positioning,
+                    width,
+                    height,
+                    depth,
+                    window_ms=None,
+                    max_axis_velocity=None,
+                ))]
+                #[allow(clippy::too_many_arguments)]
+                pub fn [<motor_ $motor_unit:snake _register>](
+                    &mut self,
+                    _py: Python<'_>,
+                    group: u8,
+                    number_channels: u32,
+                    frame_change_handling: PyFrameChangeHandling,
+                    percentage_neuron_positioning: PyPercentageNeuronPositioning,
+                    width: u32,
+                    height: u32,
+                    depth: u32,
+                    window_ms: Option<u32>,
+                    max_axis_velocity: Option<f32>,
+                ) -> PyResult<()>
+                {
+                    let group: CorticalUnitIndex = group.into();
+                    let number_channels: CorticalChannelCount =
+                        number_channels.try_into().map_err(PyFeagiError::from)?;
+                    let frame_change_handling: FrameChangeHandling = frame_change_handling.into();
+                    let percentage_neuron_positioning: PercentageNeuronPositioning =
+                        percentage_neuron_positioning.into();
+
+                    let pointer_properties = match frame_change_handling {
+                        FrameChangeHandling::Absolute => {
+                            SpatialPointerProperties::new_absolute(width, height, depth)
+                                .map_err(PyFeagiError::from)?
+                        }
+                        FrameChangeHandling::Incremental => {
+                            let window_ms = window_ms.ok_or_else(|| {
+                                PyFeagiError::from(FeagiDataError::BadParameters(
+                                    "Incremental SpatialPointer requires window_ms".into(),
+                                ))
+                            })?;
+                            let max_axis_velocity = max_axis_velocity.ok_or_else(|| {
+                                PyFeagiError::from(FeagiDataError::BadParameters(
+                                    "Incremental SpatialPointer requires max_axis_velocity".into(),
+                                ))
+                            })?;
+                            SpatialPointerProperties::new_incremental(
+                                width,
+                                height,
+                                depth,
+                                window_ms,
+                                max_axis_velocity,
+                            )
+                            .map_err(PyFeagiError::from)?
+                        }
+                    };
+
+                    self.get_motor_cache()
+                        .[<$motor_unit:snake _register>](
+                            group,
+                            number_channels,
+                            frame_change_handling,
+                            percentage_neuron_positioning,
+                            pointer_properties,
+                        )
+                        .map_err(PyFeagiError::from)?;
+                    Ok(())
+                }
+
+                /// Reads the preprocessed Incremental motion vector (`SignedPercentage3D`).
+                ///
+                /// Use in Incremental mode; Absolute mode uses
+                /// `motor_*_read_preprocessed_cache_value` (unsigned position).
+                pub fn [<motor_ $motor_unit:snake _read_signed_preprocessed_cache_value>](
+                    &mut self,
+                    _py: Python<'_>,
+                    group: u8,
+                    channel_index: u32,
+                ) -> PyResult<PySignedPercentage3D> {
+                    let group: CorticalUnitIndex = group.into();
+                    let channel_index: CorticalChannelIndex = channel_index.into();
+                    let expected_data = self
+                        .get_motor_cache()
+                        .[<$motor_unit:snake _read_signed_preprocessed_cache_value>](group, channel_index)
+                        .map_err(PyFeagiError::from)?;
+                    Ok(expected_data.into())
+                }
+
+                /// Reads the postprocessed Incremental motion vector (`SignedPercentage3D`).
+                pub fn [<motor_ $motor_unit:snake _read_signed_postprocessed_cache_value>](
+                    &mut self,
+                    _py: Python<'_>,
+                    group: u8,
+                    channel_index: u32,
+                ) -> PyResult<PySignedPercentage3D> {
+                    let group: CorticalUnitIndex = group.into();
+                    let channel_index: CorticalChannelIndex = channel_index.into();
+                    let expected_data = self
+                        .get_motor_cache()
+                        .[<$motor_unit:snake _read_signed_postprocessed_cache_value>](group, channel_index)
+                        .map_err(PyFeagiError::from)?;
+                    Ok(expected_data.into())
+                }
+            }
+        }
+
+        motor_unit_functions!(@generate_similar_functions $motor_unit, Percentage3D);
+    };
+
+    // Arm for WrappedIOType::PoseEstimationData
+    (@generate_functions
+        $motor_unit:ident,
+        PoseEstimationData
+    ) => {
+        // FEAGI core now exposes PoseEstimationData motor unit metadata through the template.
+        // Python bindings for full pose schema objects are not implemented in this crate yet.
+        // Provide a deterministic runtime error instead of failing compilation.
+        ::paste::paste! {
+            #[pymethods]
+            impl PyConnectorAgent {
+                pub fn [<motor_ $motor_unit:snake _register>](
+                    &mut self,
+                    _py: Python<'_>,
+                    _group: u8,
+                    _number_channels: u32,
+                ) -> PyResult<()>
+                {
+                    Err(pyo3::exceptions::PyNotImplementedError::new_err(
+                        "PoseEstimationData registration is not yet exposed in feagi_rust_py_libs Python bindings.",
+                    ))
+                }
+            }
+        }
+    };
+
 }
 
 /// Dispatches `MotorCorticalUnit` to the matching `MotorDeviceCache::*_try_register_motor_callback`.
@@ -1227,11 +1382,30 @@ impl PyConnectorAgent {
         Ok(())
     }
 
+    /// Reads every registered motor unit's latest decoded value as a flat snapshot.
+    ///
+    /// Returns a list of `(group, channel, mode, value)` tuples where `mode` is
+    /// `"absolute"` or `"incremental"` and `value` is a scalar (`[0, 1]` for unsigned
+    /// types, `[-1, 1]` for signed types). Multi-axis units (e.g. SpatialPointer 3D)
+    /// are flattened to one tuple per axis. This is the generic accessor used by the
+    /// Python SDK to build its motor command map without per-unit typed reads.
+    pub fn motors_read_decoded_snapshot(
+        &self,
+        _py: Python<'_>,
+    ) -> PyResult<Vec<(u32, u32, String, f64)>> {
+        let motor_cache = self.get_motor_cache();
+        let snapshot = motor_cache.read_decoded_motor_snapshot();
+        Ok(snapshot
+            .into_iter()
+            .map(|entry| (entry.group, entry.channel, entry.mode.to_string(), entry.value))
+            .collect())
+    }
+
     /// Python SDK parity: route motor cache updates into a callable `(value, command_mode=None, ...)`.
     ///
     /// `motor_unit` is a [`crate::feagi_data_structures::genomic::PyMotorCorticalUnit`] or a length-1 tuple
     /// containing one (matching existing SDK call sites).
-    #[pyo3(signature = (*, motor_unit, group, channel, callback))]
+    #[pyo3(signature = (*, motor_unit, group, channel, callback, command_mode=None))]
     pub fn register_callback(
         &mut self,
         py: Python<'_>,
@@ -1239,6 +1413,7 @@ impl PyConnectorAgent {
         group: u8,
         channel: u32,
         callback: Py<PyAny>,
+        command_mode: Option<String>,
     ) -> PyResult<()> {
         use crate::feagi_connector_core::wrapped_io_data::wrapped_io_data_to_py_object;
         use crate::feagi_data_structures::genomic::PyMotorCorticalUnit;
@@ -1268,6 +1443,7 @@ impl PyConnectorAgent {
         let channel: CorticalChannelIndex = channel.into();
 
         let py_cb = callback.clone_ref(py);
+        let command_mode = command_mode;
 
         let bridge = move |wired: &WrappedIOData| {
             #[allow(deprecated)] // FIXME: migrate to Python::attach when FEAGI's MSRV/Python policy settles
@@ -1283,8 +1459,11 @@ impl PyConnectorAgent {
                         return;
                     }
                 };
-                let none: Py<PyAny> = py.None();
-                if let Err(e) = py_cb.call1(py, (py_val, none)) {
+                let mode_arg: Py<PyAny> = match &command_mode {
+                    Some(mode) => pyo3::types::PyString::new(py, mode).into_any().unbind(),
+                    None => py.None(),
+                };
+                if let Err(e) = py_cb.call1(py, (py_val, mode_arg)) {
                     tracing::warn!(
                         target: "feagi_connector_py",
                         "register_callback: Python motor handler raised: {}",
