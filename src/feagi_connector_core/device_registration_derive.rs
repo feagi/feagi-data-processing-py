@@ -8,22 +8,21 @@ use feagi_data_structures::genomic::{MotorCorticalUnit, SensoryCorticalUnit};
 use serde_json::Map;
 use std::collections::HashSet;
 
-fn build_io_config_map() -> Result<Map<String, serde_json::Value>, String> {
-    use feagi_data_structures::genomic::cortical_area::io_cortical_area_configuration_flag::{
-        FrameChangeHandling, PercentageNeuronPositioning,
-    };
-    let mut config = Map::new();
-    config.insert(
-        "frame_change_handling".to_string(),
-        serde_json::to_value(FrameChangeHandling::Absolute)
-            .map_err(|e| format!("Failed to serialize FrameChangeHandling: {}", e))?,
-    );
-    config.insert(
-        "percentage_neuron_positioning".to_string(),
-        serde_json::to_value(PercentageNeuronPositioning::Linear)
-            .map_err(|e| format!("Failed to serialize PercentageNeuronPositioning: {}", e))?,
-    );
-    Ok(config)
+/// Extract `io_configuration_flags` from the unit definition JSON.
+///
+/// The exported device registrations already contain the actual configuration
+/// used at registration time (frame_change_handling, percentage_neuron_positioning,
+/// etc.). Using these values instead of hardcoded defaults ensures that derived
+/// cortical IDs match what FEAGI auto-creates (e.g. incremental SpatialPointer
+/// correctly maps to SignedPercentage3D rather than Percentage3D).
+fn extract_io_config(
+    unit_def: &serde_json::Value,
+) -> Result<Map<String, serde_json::Value>, String> {
+    unit_def
+        .get("io_configuration_flags")
+        .and_then(|v| v.as_object())
+        .cloned()
+        .ok_or_else(|| "unit definition missing io_configuration_flags".to_string())
 }
 
 /// Derive motor cortical IDs from device_registrations JSON.
@@ -85,8 +84,12 @@ pub fn derive_motor_cortical_ids_from_device_registrations(
                 ));
             }
 
-            let config = build_io_config_map()
-                .map_err(|e| format!("Failed to build motor IO config map: {}", e))?;
+            let config = extract_io_config(unit_def).map_err(|e| {
+                format!(
+                    "Failed to extract io_configuration_flags for motor '{}' group {}: {}",
+                    motor_unit_key, group_u8, e
+                )
+            })?;
             let unit_cortical_ids = motor_unit
                 .get_cortical_id_vector_from_index_and_serde_io_configuration_flags(group, config)
                 .map_err(|e| format!("Failed to derive cortical IDs: {}", e))?;
@@ -160,8 +163,12 @@ pub fn derive_sensory_cortical_ids_from_device_registrations(
                 ));
             }
 
-            let config = build_io_config_map()
-                .map_err(|e| format!("Failed to build sensory IO config map: {}", e))?;
+            let config = extract_io_config(unit_def).map_err(|e| {
+                format!(
+                    "Failed to extract io_configuration_flags for sensor '{}' group {}: {}",
+                    sensory_unit_key, group_u8, e
+                )
+            })?;
             let unit_cortical_ids = sensory_unit
                 .get_cortical_id_vector_from_index_and_serde_io_configuration_flags(group, config)
                 .map_err(|e| format!("Failed to derive sensory cortical IDs: {}", e))?;

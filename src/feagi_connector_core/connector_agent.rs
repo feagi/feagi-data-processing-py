@@ -17,10 +17,10 @@ use feagi_sensorimotor::data_types::descriptors::*;
 use feagi_sensorimotor::data_types::*;
 use feagi_sensorimotor::wrapped_io_data::WrappedIOData;
 use feagi_sensorimotor::ConnectorCache;
+use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
 use pyo3::pymethods;
 use pyo3::types::{PyByteArray, PyBytes, PyTuple};
-use pyo3::exceptions::PyTypeError;
 use pyo3::PyResult;
 use std::sync::MutexGuard;
 use std::time::Instant;
@@ -1397,7 +1397,14 @@ impl PyConnectorAgent {
         let snapshot = motor_cache.read_decoded_motor_snapshot();
         Ok(snapshot
             .into_iter()
-            .map(|entry| (entry.group, entry.channel, entry.mode.to_string(), entry.value))
+            .map(|entry| {
+                (
+                    entry.group,
+                    entry.channel,
+                    entry.mode.to_string(),
+                    entry.value,
+                )
+            })
             .collect())
     }
 
@@ -1446,7 +1453,8 @@ impl PyConnectorAgent {
         let command_mode = command_mode;
 
         let bridge = move |wired: &WrappedIOData| {
-            #[allow(deprecated)] // FIXME: migrate to Python::attach when FEAGI's MSRV/Python policy settles
+            #[allow(deprecated)]
+            // FIXME: migrate to Python::attach when FEAGI's MSRV/Python policy settles
             Python::with_gil(|py| {
                 let py_val: Py<PyAny> = match wrapped_io_data_to_py_object(py, wired) {
                     Ok(v) => v,
@@ -1482,6 +1490,27 @@ impl PyConnectorAgent {
             bridge,
         )
         .map_err(PyFeagiError::from)?;
+        Ok(())
+    }
+
+    /// Seed PositionalServo preprocessed cache value (`Percentage` in `[0, 1]`).
+    ///
+    /// Controllers use this to align incremental decoder state to live hardware
+    /// angle before consuming FEAGI motor bytes, preventing first-command snaps.
+    pub fn motor_positional_servo_write_preprocessed_cache_value(
+        &mut self,
+        _py: Python<'_>,
+        group: u8,
+        channel_index: u32,
+        value_0_1: f64,
+    ) -> PyResult<()> {
+        let group: CorticalUnitIndex = group.into();
+        let channel_index: CorticalChannelIndex = channel_index.into();
+        let value = (value_0_1 as f32).clamp(0.0, 1.0);
+        let value = Percentage::new_from_0_1(value).map_err(PyFeagiError::from)?;
+        self.get_motor_cache()
+            .motor_positional_servo_write_preprocessed_cache_value(group, channel_index, value)
+            .map_err(PyFeagiError::from)?;
         Ok(())
     }
 
