@@ -17,7 +17,7 @@ use feagi_io::protocol_implementations::websocket::WebSocketUrl;
 use feagi_io::protocol_implementations::zmq::ZmqUrl;
 use feagi_io::traits_and_enums::client::{FeagiClientPusher, FeagiClientSubscriber};
 use feagi_io::traits_and_enums::shared::{FeagiEndpointState, TransportProtocolEndpoint};
-use feagi_io::AgentID;
+use feagi_io::{AgentID, FeagiNetworkError};
 use feagi_sensorimotor::configuration::jsonable::JSONInputOutputDefinition;
 use feagi_serialization::FeagiByteContainer;
 use pyo3::prelude::*;
@@ -307,6 +307,49 @@ impl AgentClientCompat {
         self.last_device_registrations_json.is_some()
     }
 
+    fn sensory_socket_ready_for_publish(state: &FeagiEndpointState) -> Result<(), String> {
+        match state {
+            FeagiEndpointState::ActiveWaiting | FeagiEndpointState::ActiveHasData => Ok(()),
+            FeagiEndpointState::Pending => Err("Sensory socket is pending".to_string()),
+            FeagiEndpointState::Inactive => Err("Sensory socket is inactive".to_string()),
+            FeagiEndpointState::Errored(err) => Err(format!("Sensory socket errored: {}", err)),
+        }
+    }
+
+    fn is_transient_zmq_publish_would_block(err: &FeagiNetworkError) -> bool {
+        matches!(
+            err,
+            FeagiNetworkError::SendFailed(msg) if msg.contains("Socket would block")
+        )
+    }
+
+    /// Bounded retry for ZMQ `DONTWAIT` / `EAGAIN`, matching `feagi-agent` tokio helpers.
+    fn publish_sensory_with_transient_retry(
+        pusher: &mut dyn FeagiClientPusher,
+        bytes: &[u8],
+    ) -> Result<(), String> {
+        const MAX_ATTEMPTS: usize = 32;
+        const PAUSE: Duration = Duration::from_millis(1);
+        for attempt in 0..MAX_ATTEMPTS {
+            Self::sensory_socket_ready_for_publish(pusher.poll())?;
+            match pusher.publish_data(bytes) {
+                Ok(()) => return Ok(()),
+                Err(e) if Self::is_transient_zmq_publish_would_block(&e) => {
+                    if attempt + 1 < MAX_ATTEMPTS {
+                        std::thread::sleep(PAUSE);
+                        continue;
+                    }
+                    return Err(format!(
+                        "Sensory publish would block after {} attempts: {}",
+                        MAX_ATTEMPTS, e
+                    ));
+                }
+                Err(e) => return Err(e.to_string()),
+            }
+        }
+        Err("Sensory publish exhausted transient retries".to_string())
+    }
+
     fn wait_until_active_waiting_pusher(
         &self,
         pusher: &mut dyn FeagiClientPusher,
@@ -359,22 +402,7 @@ impl AgentClientCompat {
             .sensory_client
             .as_mut()
             .ok_or_else(|| "Sensory socket is not available for this agent type".to_string())?;
-
-        match sensory_client.poll() {
-            FeagiEndpointState::ActiveWaiting => {}
-            FeagiEndpointState::Pending => return Err("Sensory socket is pending".to_string()),
-            FeagiEndpointState::Inactive => return Err("Sensory socket is inactive".to_string()),
-            FeagiEndpointState::ActiveHasData => {
-                return Err("Sensory socket entered invalid ActiveHasData state".to_string());
-            }
-            FeagiEndpointState::Errored(err) => {
-                return Err(format!("Sensory socket errored: {}", err));
-            }
-        }
-
-        sensory_client
-            .publish_data(bytes)
-            .map_err(|e| e.to_string())
+        Self::publish_sensory_with_transient_retry(sensory_client.as_mut(), bytes)
     }
 
     fn encode_sensory_pairs_to_container(
@@ -514,6 +542,50 @@ impl AgentClientCompat {
         }
 
         Ok(Some(serde_json::Value::Object(result).to_string()))
+    }
+
+    /// Polls the motor socket and returns the raw, verified FEAGI byte payload.
+    ///
+    /// Unlike [`Self::receive_motor_data`], this performs NO XYZP-to-JSON conversion;
+    /// the bytes are returned untouched so the Rust motor decoder (`MotorDeviceCache`)
+    /// can decode them directly. Returns `None` when no data is currently available.
+    fn receive_motor_data_raw(&mut self) -> Result<Option<Vec<u8>>, String> {
+        if !self.registered {
+            return Err("Agent is not registered".to_string());
+        }
+        self.maybe_send_heartbeat()?;
+        let motor_client = self
+            .motor_client
+            .as_mut()
+            .ok_or_else(|| "Motor socket is not available for this agent type".to_string())?;
+
+        let raw_data: Vec<u8> = match motor_client.poll() {
+            FeagiEndpointState::ActiveHasData => motor_client
+                .consume_retrieved_data()
+                .map_err(|e| e.to_string())?
+                .to_vec(),
+            FeagiEndpointState::ActiveWaiting
+            | FeagiEndpointState::Pending
+            | FeagiEndpointState::Inactive => return Ok(None),
+            FeagiEndpointState::Errored(err) => {
+                return Err(format!("Motor socket errored: {}", err));
+            }
+        };
+
+        // Verify the payload decodes to the expected motor structure before handing the
+        // bytes to the decoder, preserving the validation contract of receive_motor_data.
+        let mut buffer = FeagiByteContainer::new_empty();
+        buffer
+            .try_write_data_by_copy_and_verify(&raw_data)
+            .map_err(|e| e.to_string())?;
+        let structure_count = buffer
+            .try_get_number_contained_structures()
+            .map_err(|e| e.to_string())?;
+        if structure_count == 0 {
+            return Ok(None);
+        }
+
+        Ok(Some(raw_data))
     }
 
     fn maybe_send_heartbeat(&mut self) -> Result<(), String> {
@@ -844,6 +916,23 @@ impl PyAgentClient {
         client
             .receive_motor_data()
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
+    }
+
+    /// Polls the motor socket and returns the raw verified FEAGI byte payload, or
+    /// `None` when no data is available.
+    ///
+    /// Intended to feed the Rust motor decoder directly (no Python-side XYZP decode).
+    fn receive_motor_data_raw<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> PyResult<Option<Bound<'py, PyBytes>>> {
+        let mut client = self.inner.lock().map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Lock poisoned: {}", e))
+        })?;
+        let maybe_bytes = client
+            .receive_motor_data_raw()
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))?;
+        Ok(maybe_bytes.map(|bytes| PyBytes::new(py, &bytes)))
     }
 
     fn is_registered(&self) -> PyResult<bool> {

@@ -5,6 +5,7 @@ use crate::feagi_connector_core::data_types::{
 };
 use feagi_data_structures::FeagiDataError;
 use feagi_sensorimotor::wrapped_io_data::WrappedIOData;
+use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
 use pyo3::types::PyBool;
 use pyo3::{IntoPyObjectExt, PyResult};
@@ -72,6 +73,9 @@ pub fn wrapped_io_data_to_py_object(
             let py_settings = PyImageFilteringSettings::from(settings.clone());
             py_settings.into_py_any(py)
         }
+        WrappedIOData::PoseEstimationData(_) => Err(PyTypeError::new_err(
+            "PoseEstimationData is not yet exposed in feagi_rust_py_libs Python bindings.",
+        )),
     }
 }
 
