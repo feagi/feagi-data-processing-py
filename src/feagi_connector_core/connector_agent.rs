@@ -1389,12 +1389,22 @@ impl PyConnectorAgent {
     /// types, `[-1, 1]` for signed types). Multi-axis units (e.g. SpatialPointer 3D)
     /// are flattened to one tuple per axis. This is the generic accessor used by the
     /// Python SDK to build its motor command map without per-unit typed reads.
+    ///
+    /// When ``updated_only`` is true, only channels updated since the last full
+    /// snapshot read are included (see
+    /// ``MotorDeviceCache::read_decoded_motor_snapshot_updated_only``).
+    #[pyo3(signature = (updated_only=false))]
     pub fn motors_read_decoded_snapshot(
         &self,
         _py: Python<'_>,
+        updated_only: bool,
     ) -> PyResult<Vec<(u32, u32, String, f64)>> {
         let motor_cache = self.get_motor_cache();
-        let snapshot = motor_cache.read_decoded_motor_snapshot();
+        let snapshot = if updated_only {
+            motor_cache.read_decoded_motor_snapshot_updated_only()
+        } else {
+            motor_cache.read_decoded_motor_snapshot()
+        };
         Ok(snapshot
             .into_iter()
             .map(|entry| {
