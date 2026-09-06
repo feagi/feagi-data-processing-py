@@ -56,6 +56,7 @@ fn build_cortical_subtype_friendly_names() -> BTreeMap<String, BTreeMap<u8, Stri
                         cortical_id_unit_reference: $cortical_id_unit_reference:expr,
                         number_cortical_areas: $number_cortical_areas:expr,
                         $(default_firing_threshold: $default_firing_threshold:expr,)?
+                        $(default_firing_threshold_increment: [$default_firing_threshold_increment_x:expr, $default_firing_threshold_increment_y:expr, $default_firing_threshold_increment_z:expr],)?
                         $(default_mp_charge_accumulation: $default_mp_charge_accumulation:expr,)?
                         cortical_type_parameters: {
                             $($param_name:ident: $param_type:ty),* $(,)?

@@ -392,6 +392,12 @@ fn feagi_rust_py_libs(py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     genome_module.setattr("__name__", "feagi_rust_py_libs.genome")?;
     genome_module.setattr("__package__", "feagi_rust_py_libs")?;
     register_submodule_in_sys_modules(py, "feagi_rust_py_libs.genome", &genome_module)?;
+
+    feagi_evo::connectome::register_module(py, m)?;
+    let connectome_module = m.getattr("connectome")?.cast_into::<PyModule>()?;
+    connectome_module.setattr("__name__", "feagi_rust_py_libs.connectome")?;
+    connectome_module.setattr("__package__", "feagi_rust_py_libs")?;
+    register_submodule_in_sys_modules(py, "feagi_rust_py_libs.connectome", &connectome_module)?;
     //endregion
 
     Ok(())
