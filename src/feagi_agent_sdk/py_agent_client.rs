@@ -41,6 +41,13 @@ pub(crate) struct AgentClientCompat {
 }
 
 impl AgentClientCompat {
+    /// Pause between polling attempts in the connect/disconnect/rebuild wait
+    /// loops. These loops previously used `std::thread::yield_now()`, a
+    /// busy-spin that pegs a CPU core with no actual pause; a small bounded
+    /// sleep is a good citizen on shared/embedded hardware while adding
+    /// negligible latency relative to the sockets' own round-trip time.
+    const POLL_SLEEP: Duration = Duration::from_millis(2);
+
     fn new(config: AgentConfigCompat) -> Self {
         Self {
             config,
@@ -187,7 +194,7 @@ impl AgentClientCompat {
                 break;
             }
 
-            std::thread::yield_now();
+            std::thread::sleep(Self::POLL_SLEEP);
         }
 
         let session_id = session_id.ok_or_else(|| {
@@ -365,7 +372,7 @@ impl AgentClientCompat {
                     return Err(format!("Sensory connect failed: {}", err));
                 }
                 _ => {
-                    std::thread::yield_now();
+                    std::thread::sleep(Self::POLL_SLEEP);
                 }
             }
         }
@@ -386,7 +393,7 @@ impl AgentClientCompat {
                     return Err(format!("Motor connect failed: {}", err));
                 }
                 _ => {
-                    std::thread::yield_now();
+                    std::thread::sleep(Self::POLL_SLEEP);
                 }
             }
         }
@@ -667,7 +674,7 @@ impl AgentClientCompat {
                         acked = true;
                         break;
                     }
-                    std::thread::yield_now();
+                    std::thread::sleep(Self::POLL_SLEEP);
                 }
                 tracing::info!(
                     target: "feagi-rust-py-libs",
@@ -863,13 +870,25 @@ impl PyAgentClient {
         })
     }
 
-    fn connect(&mut self) -> PyResult<()> {
-        let mut client = self.inner.lock().map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Lock poisoned: {}", e))
-        })?;
-        client
-            .connect()
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
+    /// Connect and register with FEAGI.
+    ///
+    /// This blocks for up to `connection_timeout_ms * registration_retries`
+    /// (per `AgentConfigCompat`) while polling the control socket. That work
+    /// is dispatched via [`Python::allow_threads`] so the GIL is released for
+    /// its duration: without this, no other Python thread in the process
+    /// (e.g. a controller's manual-control HTTP server thread) can run while
+    /// `connect()` is polling, which previously froze concurrent Python
+    /// threads for the full connection deadline on every attempt.
+    fn connect(&mut self, py: Python<'_>) -> PyResult<()> {
+        let inner = self.inner.clone();
+        py.allow_threads(move || {
+            let mut client = inner.lock().map_err(|e| {
+                PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Lock poisoned: {}", e))
+            })?;
+            client
+                .connect()
+                .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
+        })
     }
 
     fn send_sensory_data(&self, _py: Python, neuron_pairs: Bound<'_, PyAny>) -> PyResult<()> {
@@ -964,13 +983,20 @@ impl PyAgentClient {
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
     }
 
-    fn disconnect(&mut self) -> PyResult<()> {
-        let mut client = self.inner.lock().map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Lock poisoned: {}", e))
-        })?;
-        client
-            .disconnect()
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
+    /// Disconnect from FEAGI, waiting (up to `connection_timeout_ms`) for the
+    /// deregistration ack. Dispatched via [`Python::allow_threads`] for the
+    /// same reason as `connect()`: it polls in a loop and must not hold the
+    /// GIL for that duration.
+    fn disconnect(&mut self, py: Python<'_>) -> PyResult<()> {
+        let inner = self.inner.clone();
+        py.allow_threads(move || {
+            let mut client = inner.lock().map_err(|e| {
+                PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Lock poisoned: {}", e))
+            })?;
+            client
+                .disconnect()
+                .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
+        })
     }
 
     /// Force a fresh registration cycle: disconnect (best-effort), connect,
@@ -985,15 +1011,24 @@ impl PyAgentClient {
     ///
     /// On success the agent is registered again and any cached device
     /// registrations have been re-sent. Raises `RuntimeError` on failure.
+    /// Disconnects and reconnects, replaying cached device registrations.
+    ///
+    /// Like `connect()`/`disconnect()`, `rebuild()` polls in a loop for up to
+    /// `connection_timeout_ms * registration_retries`; dispatched via
+    /// [`Python::allow_threads`] so it does not hold the GIL for that
+    /// duration.
     #[pyo3(signature = (reason=None))]
-    fn reconnect(&self, reason: Option<&str>) -> PyResult<()> {
-        let mut client = self.inner.lock().map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Lock poisoned: {}", e))
-        })?;
-        let reason_text = reason.unwrap_or("python-sdk reconnect");
-        client
-            .rebuild(reason_text)
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
+    fn reconnect(&self, py: Python<'_>, reason: Option<&str>) -> PyResult<()> {
+        let inner = self.inner.clone();
+        let reason_text = reason.unwrap_or("python-sdk reconnect").to_string();
+        py.allow_threads(move || {
+            let mut client = inner.lock().map_err(|e| {
+                PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Lock poisoned: {}", e))
+            })?;
+            client
+                .rebuild(&reason_text)
+                .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
+        })
     }
 
     /// Whether the most recent successful `send_device_configuration` is
@@ -1042,6 +1077,20 @@ mod tests {
             group: None,
         });
         AgentClientCompat::new(cfg)
+    }
+
+    /// `PyAgentClient::connect`/`disconnect`/`reconnect` dispatch their
+    /// blocking work through `Python::allow_threads`, which requires the
+    /// closure (and everything it captures, including `AgentClientCompat`
+    /// behind the shared `Arc<Mutex<_>>`) to be `Send`. This compile-time
+    /// assertion guards that invariant: if a future change to
+    /// `AgentClientCompat`'s fields makes it `!Send`, this test fails to
+    /// *compile* (not just to run), catching the regression immediately
+    /// instead of resurfacing as a GIL-freeze bug report.
+    #[test]
+    fn agent_client_compat_is_send() {
+        fn assert_send<T: Send>() {}
+        assert_send::<AgentClientCompat>();
     }
 
     #[test]
