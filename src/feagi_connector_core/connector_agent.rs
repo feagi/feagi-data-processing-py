@@ -1504,6 +1504,62 @@ impl PyConnectorAgent {
         Ok(())
     }
 
+    /// Register PositionalServo with absolute-target + incremental-speed semantics.
+    ///
+    /// Each channel emits `(target_position, speed_limit)` as `Percentage2D`.
+    /// `default_speed_0_1_per_channel` must contain one `[0, 1]` speed for every
+    /// channel; it is used when only the absolute cortical area fires.
+    pub fn motor_positional_servo_target_speed_register(
+        &mut self,
+        _py: Python<'_>,
+        group: u8,
+        number_channels: u32,
+        absolute_z_neuron_resolution: u32,
+        incremental_z_neuron_resolution: u32,
+        percentage_neuron_positioning: PyPercentageNeuronPositioning,
+        default_speed_0_1_per_channel: Vec<f64>,
+        incremental_step_0_1: f64,
+    ) -> PyResult<()> {
+        let group: CorticalUnitIndex = group.into();
+        let number_channels: CorticalChannelCount =
+            number_channels.try_into().map_err(PyFeagiError::from)?;
+        let absolute_z_neuron_resolution: NeuronDepth =
+            absolute_z_neuron_resolution.try_into().map_err(PyFeagiError::from)?;
+        let incremental_z_neuron_resolution: NeuronDepth = incremental_z_neuron_resolution
+            .try_into()
+            .map_err(PyFeagiError::from)?;
+        let percentage_neuron_positioning: PercentageNeuronPositioning =
+            percentage_neuron_positioning.into();
+        if default_speed_0_1_per_channel.len() != *number_channels as usize {
+            return Err(PyFeagiError::from(FeagiDataError::BadParameters(
+                "default_speed_0_1_per_channel length must match number_channels".to_string(),
+            ))
+            .into());
+        }
+        if !incremental_step_0_1.is_finite() || !(incremental_step_0_1 > 0.0 && incremental_step_0_1 <= 1.0) {
+            return Err(PyFeagiError::from(FeagiDataError::BadParameters(
+                "incremental_step_0_1 must be a finite number in (0, 1].".to_string(),
+            ))
+            .into());
+        }
+        let default_speeds: Vec<f32> = default_speed_0_1_per_channel
+            .into_iter()
+            .map(|speed| speed as f32)
+            .collect();
+        self.get_motor_cache()
+            .motor_positional_servo_target_speed_register(
+                group,
+                number_channels,
+                absolute_z_neuron_resolution,
+                incremental_z_neuron_resolution,
+                percentage_neuron_positioning,
+                default_speeds,
+                incremental_step_0_1 as f32,
+            )
+            .map_err(PyFeagiError::from)?;
+        Ok(())
+    }
+
     /// Seed PositionalServo preprocessed cache value (`Percentage` in `[0, 1]`).
     ///
     /// Controllers use this to align incremental decoder state to live hardware
