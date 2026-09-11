@@ -1518,6 +1518,7 @@ impl PyConnectorAgent {
         incremental_z_neuron_resolution: u32,
         percentage_neuron_positioning: PyPercentageNeuronPositioning,
         default_speed_0_1_per_channel: Vec<f64>,
+        incremental_step_0_1: f64,
     ) -> PyResult<()> {
         let group: CorticalUnitIndex = group.into();
         let number_channels: CorticalChannelCount =
@@ -1535,6 +1536,12 @@ impl PyConnectorAgent {
             ))
             .into());
         }
+        if !incremental_step_0_1.is_finite() || !(incremental_step_0_1 > 0.0 && incremental_step_0_1 <= 1.0) {
+            return Err(PyFeagiError::from(FeagiDataError::BadParameters(
+                "incremental_step_0_1 must be a finite number in (0, 1].".to_string(),
+            ))
+            .into());
+        }
         let default_speeds: Vec<f32> = default_speed_0_1_per_channel
             .into_iter()
             .map(|speed| speed as f32)
@@ -1547,6 +1554,7 @@ impl PyConnectorAgent {
                 incremental_z_neuron_resolution,
                 percentage_neuron_positioning,
                 default_speeds,
+                incremental_step_0_1 as f32,
             )
             .map_err(PyFeagiError::from)?;
         Ok(())
