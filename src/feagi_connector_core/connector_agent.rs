@@ -1504,11 +1504,10 @@ impl PyConnectorAgent {
         Ok(())
     }
 
-    /// Register PositionalServo with absolute-target + incremental-speed semantics.
+    /// Register PositionalServo with dedicated speed-area semantics.
     ///
     /// Each channel emits `(target_position, speed_limit)` as `Percentage2D`.
-    /// `default_speed_0_1_per_channel` must contain one `[0, 1]` speed for every
-    /// channel; it is used when only the absolute cortical area fires.
+    /// Speed comes from PositionalServo area 2. A silent speed area emits `1.0`.
     pub fn motor_positional_servo_target_speed_register(
         &mut self,
         _py: Python<'_>,
